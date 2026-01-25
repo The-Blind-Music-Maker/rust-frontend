@@ -1,0 +1,135 @@
+voices:
+  min: 50
+  max: 100
+x_gens: 20
+children: 25
+modFuncs:
+  - name: scoreMelodicMotifs
+    weight: 1
+    params: []
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: false
+    splitVoices: false
+    scoreRange: [0, null]
+
+  - name: scoreRhythmicMotifs
+    weight: 0
+    params: []
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: false
+    splitVoices: false
+    scoreRange: [0, null]
+
+  - name: scoreOverlap
+    weight: 0
+    params:
+      - name: "Target overlap bass"
+        range: [0, 8]
+        value: 0
+        type: int
+      - name: "Target overlap mid"
+        range: [0, 8]
+        value: 3
+        type: int
+      - name: "Target overlap high"
+        range: [0, 8]
+        value: 0
+        type: int
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: false
+    splitVoices: false
+    scoreRange: [null, 1]
+
+  - name: scoreTonality
+    weight: 2
+    params: []
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: true
+    splitVoices: false
+    scoreRange: [-1, 1]
+
+  - name: scoreSimultaneousIntervals
+    weight: 1
+    params: []
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: true
+    splitVoices: false
+    scoreRange: [-1, 1]
+
+  - name: scoreMeasureForChord
+    weight: 2
+    params: []
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: true
+    splitVoices: false
+    scoreRange: [-1, 1]
+
+  - name: scoreGridness16th
+    weight: 1
+    params:
+      - name: Optimum
+        range: [0, 1]
+        value: 0
+        type: float
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: true
+    splitVoices: false
+    scoreRange: [-1, 1]
+
+  - name: scoreNoteCount
+    weight: 1
+    params:
+      - name: "Q Note count"
+        range: [0, 160]
+        value: 16
+        type: int
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: false
+    splitVoices: false
+    scoreRange: [null, 0]
+
+  - name: scoreNoteDiversity
+    weight: 0
+    params:
+      - name: "Target diversity"
+        range: [0, 1]
+        value: 1
+        type: float
+      - name: "Note length preference"
+        range: [0, 1]
+        value: 0.5
+        type: float
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: true
+    splitVoices: false
+    scoreRange: [-1, 1]
+
+  - name: scoreGrowthDensity
+    weight: 1
+    params:
+      - name: "Target density bass"
+        range: [0, 8]
+        value: 1
+        type: float
+      - name: "Target density mid"
+        range: [0, 8]
+        value: 1
+        type: float
+      - name: "Target density high"
+        range: [0, 8]
+        value: 1
+        type: float
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: false
+    splitVoices: false
+    scoreRange: [null, 0]
