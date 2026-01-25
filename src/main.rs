@@ -114,7 +114,6 @@ fn melody_to_loop_data(
         .unwrap_or(0);
 
     let loop_len_ticks = round_up_to_multiple(raw_end.max(1), tpq.max(1));
-
     // Build loop data with melody track
     let mut loop_data = LoopData {
         loop_len_ticks,
@@ -210,7 +209,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     // boundary triggers: small bounded buffer so scheduler never blocks
     let (boundary_tx, boundary_rx) = mpsc::sync_channel::<()>(2);
 
-    let loop_data = melody_to_loop_data(&initial, 600, 1, 64);
+    let loop_data = melody_to_loop_data(&initial, 600, 0, 64);
 
     let mut scheduler = Scheduler::new(
         loop_data,
@@ -311,7 +310,7 @@ fn producer_example(
             state.last_melody = new_melody;
 
             // convert to LoopData + send to playback
-            let loop_data = melody_to_loop_data(&state.last_melody, tpq, 1, 64);
+            let loop_data = melody_to_loop_data(&state.last_melody, tpq, 0, 64);
             if loop_tx.send(loop_data).is_err() {
                 return;
             }
