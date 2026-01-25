@@ -453,10 +453,10 @@ struct ScheduledEvent {
 // Lower number = higher priority (processed first) when abs_tick ties
 fn kind_priority(k: &EventKind) -> u8 {
     match k {
-        EventKind::Boundary => 0, // apply swap before anything else at the boundary
-        EventKind::NoteOff { .. } => 1, // turn off before on
-        EventKind::NoteOn { .. } => 2,
-        EventKind::MidiClock => 3, // clock can be after note events if they coincide
+        EventKind::MidiClock => 0, // clock can be after note events if they coincide
+        EventKind::Boundary => 1,  // apply swap before anything else at the boundary
+        EventKind::NoteOff { .. } => 2, // turn off before on
+        EventKind::NoteOn { .. } => 3,
     }
 }
 
