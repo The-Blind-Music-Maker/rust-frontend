@@ -86,6 +86,14 @@ pub struct ModFuncParam {
 
     #[serde(rename = "type")]
     pub t: ModFuncParamType,
+
+    // NEW: CC number for this param
+    #[serde(default)]
+    pub cc: Option<u8>,
+
+    // OPTIONAL: bind to a specific MIDI channel (0..15). If None => any channel.
+    #[serde(default)]
+    pub channel: Option<u8>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -107,6 +115,14 @@ pub struct ModFunc {
 
     #[serde(rename = "scoreRange")]
     pub score_range: (Option<f64>, Option<f64>),
+
+    // NEW: CC number for this modfunc weight
+    #[serde(rename = "weightCC", default)]
+    pub weight_cc: Option<u8>,
+
+    // OPTIONAL: bind weight CC to a specific MIDI channel (0..15). If None => any channel.
+    #[serde(rename = "weightChannel", default)]
+    pub weight_channel: Option<u8>,
 }
 
 pub fn load_config(path: &str) -> Result<MidievolConfig, Box<dyn std::error::Error>> {
@@ -182,7 +198,6 @@ pub fn send_init_req(
     }
 
     let txt = response.text().unwrap();
-    println!("txt: {txt}");
 
     // Deserialize JSON body into Melody
     let melody: Melody = serde_json::from_str(&txt).unwrap(); //response.json()?;
@@ -204,7 +219,6 @@ pub fn send_evolve_req(
     }
 
     let txt = response.text().unwrap();
-    println!("txt: {txt}");
 
     // Deserialize JSON body into Melody
     let melody: Melody = serde_json::from_str(&txt).unwrap(); //response.json()?;

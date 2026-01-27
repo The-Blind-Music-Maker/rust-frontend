@@ -1,11 +1,14 @@
 voices:
-  min: 50
-  max: 100
+  min: 30
+  max: 70
+
 x_gens: 20
 children: 25
+
 modFuncs:
   - name: scoreMelodicMotifs
     weight: 1
+    weightCC: 1
     params: []
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
@@ -15,6 +18,7 @@ modFuncs:
 
   - name: scoreRhythmicMotifs
     weight: 0
+    weightCC: 2
     params: []
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
@@ -24,19 +28,23 @@ modFuncs:
 
   - name: scoreOverlap
     weight: 0
+    weightCC: 3
     params:
       - name: "Target overlap bass"
         range: [0, 8]
         value: 0
         type: int
+        cc: 11
       - name: "Target overlap mid"
         range: [0, 8]
         value: 3
         type: int
+        cc: 12
       - name: "Target overlap high"
         range: [0, 8]
         value: 0
         type: int
+        cc: 13
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
@@ -45,6 +53,7 @@ modFuncs:
 
   - name: scoreTonality
     weight: 2
+    weightCC: 4
     params: []
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
@@ -54,6 +63,7 @@ modFuncs:
 
   - name: scoreSimultaneousIntervals
     weight: 1
+    weightCC: 5
     params: []
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
@@ -63,6 +73,7 @@ modFuncs:
 
   - name: scoreMeasureForChord
     weight: 2
+    weightCC: 6
     params: []
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
@@ -72,11 +83,13 @@ modFuncs:
 
   - name: scoreGridness16th
     weight: 1
+    weightCC: 7
     params:
       - name: Optimum
         range: [0, 1]
         value: 0
         type: float
+        cc: 14
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: true
@@ -85,11 +98,13 @@ modFuncs:
 
   - name: scoreNoteCount
     weight: 1
+    weightCC: 8
     params:
       - name: "Q Note count"
         range: [0, 160]
         value: 16
         type: int
+        cc: 15
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
@@ -98,15 +113,18 @@ modFuncs:
 
   - name: scoreNoteDiversity
     weight: 0
+    weightCC: 9
     params:
       - name: "Target diversity"
         range: [0, 1]
         value: 1
         type: float
+        cc: 16
       - name: "Note length preference"
         range: [0, 1]
         value: 0.5
         type: float
+        cc: 17
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: true
@@ -114,20 +132,24 @@ modFuncs:
     scoreRange: [-1, 1]
 
   - name: scoreGrowthDensity
-    weight: 1
+    weight: 0
+    weightCC: 10
     params:
       - name: "Target density bass"
         range: [0, 8]
-        value: 1
+        value: 0.1
         type: float
+        cc: 18
       - name: "Target density mid"
         range: [0, 8]
-        value: 1
+        value: 0.1
         type: float
+        cc: 19
       - name: "Target density high"
         range: [0, 8]
-        value: 1
+        value: 0.1
         type: float
+        cc: 20
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
