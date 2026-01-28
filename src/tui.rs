@@ -18,6 +18,9 @@ use crate::midievol;
 
 pub enum TUIEvent {
     Reset,
+    NewBPM(f64),
+    SendStart,
+    SendStop,
 }
 
 const BPM_UP_KEY: &str = "↑";
@@ -201,7 +204,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     // --- Status bar ---
     let status = Paragraph::new(format!(
-        "q: quit | r: reset | {}{}: bpm | producer in-flight: {} | modfuncs: {} | bpm: {:3.0}",
+        "q: quit | r: reset | p: send play signal | s: send stop signal | {}{}: bpm | producer in-flight: {} | modfuncs: {} | bpm: {:3.0}",
         BPM_DOWN_KEY,
         BPM_UP_KEY,
         if app.in_flight { "YES" } else { "no" },
@@ -262,7 +265,7 @@ pub fn run_tui(
     ui_rx: mpsc::Receiver<UiEvent>,
     stop_tx: mpsc::Sender<()>,
     tui_events_tx: mpsc::Sender<TUIEvent>,
-    tempo_tx: mpsc::Sender<f64>,
+    tui_scheduler_tx: mpsc::Sender<TUIEvent>,
 ) -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
@@ -288,13 +291,21 @@ pub fn run_tui(
                     let _ = tui_events_tx.send(TUIEvent::Reset);
                 }
 
+                if k.code == KeyCode::Char('p') {
+                    let _ = tui_scheduler_tx.send(TUIEvent::SendStart);
+                }
+
+                if k.code == KeyCode::Char('s') {
+                    let _ = tui_scheduler_tx.send(TUIEvent::SendStop);
+                }
+
                 if k.code == KeyCode::Up {
                     let new_bpm = {
                         let mut cfg = cfg.lock().unwrap();
                         cfg.bpm = (cfg.bpm + BPM_STEP).clamp(BPM_MIN, BPM_MAX);
                         cfg.bpm
                     };
-                    let _ = tempo_tx.send(new_bpm);
+                    let _ = tui_scheduler_tx.send(TUIEvent::NewBPM(new_bpm));
                 }
 
                 if k.code == KeyCode::Down {
@@ -303,7 +314,7 @@ pub fn run_tui(
                         cfg.bpm = (cfg.bpm - BPM_STEP).clamp(BPM_MIN, BPM_MAX);
                         cfg.bpm
                     };
-                    let _ = tempo_tx.send(new_bpm);
+                    let _ = tui_scheduler_tx.send(TUIEvent::NewBPM(new_bpm));
                 }
             }
         }

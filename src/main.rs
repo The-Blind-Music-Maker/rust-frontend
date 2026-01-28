@@ -276,7 +276,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     let (stop_tx, stop_rx) = mpsc::channel::<()>();
 
     let (loop_tx, loop_rx) = mpsc::channel::<LoopData>();
-    let (tempo_tx, tempo_rx) = mpsc::channel::<f64>();
+    let (tui_scheduler_tx, tui_scheduler_rx) = mpsc::channel::<TUIEvent>();
     let (boundary_tx, boundary_rx) = mpsc::sync_channel::<()>(2);
 
     let (cc_tx, cc_rx) = mpsc::channel::<MidiCc>();
@@ -299,7 +299,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
         let melody_ui = Arc::clone(&melody_ui); // NEW
         let stop_tx2 = stop_tx.clone();
         thread::spawn(move || {
-            if let Err(e) = run_tui(cfg_ui, melody_ui, ui_rx, stop_tx2, tui_tx, tempo_tx) {
+            if let Err(e) = run_tui(cfg_ui, melody_ui, ui_rx, stop_tx2, tui_tx, tui_scheduler_tx) {
                 eprintln!("TUI error: {e}");
             }
         });
@@ -360,8 +360,17 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
             pending = Some(new_loop);
         }
 
-        while let Ok(new_bpm) = tempo_rx.try_recv() {
-            scheduler.set_bpm(new_bpm);
+        while let Ok(ev) = tui_scheduler_rx.try_recv() {
+            match ev {
+                TUIEvent::NewBPM(new_bpm) => scheduler.set_bpm(new_bpm),
+                TUIEvent::SendStart => {
+                    send_realtime(&mut conn_out, MIDI_START);
+                }
+                TUIEvent::SendStop => {
+                    send_realtime(&mut conn_out, MIDI_STOP);
+                }
+                _ => {}
+            }
         }
 
         // Sleep until next event deadline; then process any events due.
@@ -438,6 +447,7 @@ fn producer(
                         let _ = tx.send((my_token, melody));
                     });
                 }
+                _ => {}
             }
         }
 
