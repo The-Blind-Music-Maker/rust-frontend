@@ -242,9 +242,8 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     };
 
     // ---- Tempo / internal scheduler resolution ----
-    let bpm: f64 = 120.0;
+    let bpm: f64 = cfg.bpm;
     let tpq: u64 = 600; // internal ticks per quarter note (NOT MIDI clock)
-    let tick_period = tick_period_from_bpm_tpq(bpm, tpq);
 
     // MIDI clock output (24 PPQN)
     let send_midi_clock = true;
@@ -277,6 +276,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     let (stop_tx, stop_rx) = mpsc::channel::<()>();
 
     let (loop_tx, loop_rx) = mpsc::channel::<LoopData>();
+    let (tempo_tx, tempo_rx) = mpsc::channel::<f64>();
     let (boundary_tx, boundary_rx) = mpsc::sync_channel::<()>(2);
 
     let (cc_tx, cc_rx) = mpsc::channel::<MidiCc>();
@@ -299,7 +299,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
         let melody_ui = Arc::clone(&melody_ui); // NEW
         let stop_tx2 = stop_tx.clone();
         thread::spawn(move || {
-            if let Err(e) = run_tui(cfg_ui, melody_ui, ui_rx, stop_tx2, tui_tx) {
+            if let Err(e) = run_tui(cfg_ui, melody_ui, ui_rx, stop_tx2, tui_tx, tempo_tx) {
                 eprintln!("TUI error: {e}");
             }
         });
@@ -319,7 +319,6 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
         loop_data,
         tpq,
         bpm,
-        tick_period,
         Instant::now(),
         send_midi_clock,
         ticks_per_midi_clock,
@@ -359,6 +358,10 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
         // Drain updates without blocking (parallel fetching)
         while let Ok(new_loop) = loop_rx.try_recv() {
             pending = Some(new_loop);
+        }
+
+        while let Ok(new_bpm) = tempo_rx.try_recv() {
+            scheduler.set_bpm(new_bpm);
         }
 
         // Sleep until next event deadline; then process any events due.
@@ -508,13 +511,6 @@ fn producer(
             Err(mpsc::RecvTimeoutError::Disconnected) => return,
         }
     }
-}
-
-// ======================= timing helpers =======================
-
-fn tick_period_from_bpm_tpq(bpm: f64, tpq: u64) -> Duration {
-    let secs = 60.0 / (bpm * tpq as f64);
-    Duration::from_secs_f64(secs)
 }
 
 // ======================= MIDI output selection =======================

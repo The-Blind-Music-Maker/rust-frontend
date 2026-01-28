@@ -142,6 +142,7 @@ pub struct MidievolConfig {
     pub voices: Voices,
     pub x_gens: u32,
     pub children: u32,
+    pub bpm: f64,
 
     #[serde(rename = "modFuncs")]
     pub modfuncs: Vec<ModFunc>,

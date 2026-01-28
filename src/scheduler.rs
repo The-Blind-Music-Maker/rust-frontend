@@ -6,6 +6,18 @@ use std::time::{Duration, Instant};
 
 const MIDI_CLOCK: u8 = 0xF8;
 
+fn tick_period_from_bpm(tpq: u64, bpm: f64) -> Duration {
+    let tpq = tpq.max(1) as f64;
+    let bpm = bpm.max(1e-6); // avoid div-by-zero / nonsense
+
+    // seconds per tick = 60 / (bpm * tpq)
+    let secs_per_tick = 60.0 / (bpm * tpq);
+
+    // convert to nanos (clamp to at least 1ns)
+    let nanos = (secs_per_tick * 1_000_000_000.0).round().max(1.0) as u64;
+    Duration::from_nanos(nanos)
+}
+
 // ======================= MIDI helpers =======================
 
 pub fn send_realtime(conn_out: &mut midir::MidiOutputConnection, status: u8) {
@@ -126,33 +138,37 @@ pub struct Scheduler {
     ticks_per_midi_clock: u64,
 
     boundary_tx: Option<SyncSender<()>>,
+
+    tpq: u64,
+    bpm: f64,
 }
 
 impl Scheduler {
     pub fn new(
         loopdata: LoopData,
-        _tpq: u64,
-        _bpm: f64,
-        tick_period: Duration,
+        tpq: u64,
+        bpm: f64,
         start_instant: Instant,
         send_midi_clock: bool,
         ticks_per_midi_clock: u64,
         boundary_tx: Option<SyncSender<()>>,
     ) -> Self {
         let mut s = Self {
-            tick_period,
+            tick_period: tick_period_from_bpm(tpq, bpm),
             start_instant,
             heap: BinaryHeap::new(),
             current: loopdata,
             send_midi_clock,
             ticks_per_midi_clock: ticks_per_midi_clock.max(1),
-            boundary_tx: boundary_tx,
+            boundary_tx,
+
+            tpq: tpq.max(1),
+            bpm: bpm,
         };
 
-        // Build schedule anchored at tick 0
+        // ... unchanged
         s.rebuild_heap_at_boundary(0);
 
-        // Add MIDI clock stream (anchored at tick 0)
         if s.send_midi_clock {
             s.heap.push(ScheduledEvent {
                 abs_tick: 0,
@@ -162,6 +178,24 @@ impl Scheduler {
         }
 
         s
+    }
+
+    pub fn set_bpm(&mut self, new_bpm: f64) {
+        let new_period = tick_period_from_bpm(self.tpq, new_bpm);
+
+        // compute where we are in "tick time" using the OLD period
+        let now_tick = self.now_tick();
+
+        // switch period
+        self.tick_period = new_period;
+        self.bpm = new_bpm;
+
+        // re-anchor start_instant so that now_tick stays the same under the NEW period
+        let tick_ns = self.tick_period.as_nanos() as u128;
+        let back_ns = (now_tick as u128).saturating_mul(tick_ns);
+
+        self.start_instant =
+            Instant::now() - Duration::from_nanos(back_ns.min(u128::from(u64::MAX)) as u64);
     }
 
     fn now_tick(&self) -> u64 {

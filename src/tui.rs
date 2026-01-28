@@ -20,6 +20,10 @@ pub enum TUIEvent {
     Reset,
 }
 
+const BPM_STEP: f64 = 1.0;
+const BPM_MIN: f64 = 20.0;
+const BPM_MAX: f64 = 300.0;
+
 const NOTES: [&str; 12] = [
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
 ];
@@ -50,7 +54,6 @@ fn melody_summary(m: &midievol::Melody, max_notes: usize) -> String {
     let len_q = (len_ticks + 600 - 1) / 600;
 
     // Basic stats
-    parts.push(format!("bpm={}", m.bpm));
     parts.push(format!("score={:.3}", m.score));
     parts.push(format!("notes={}", n));
 
@@ -196,9 +199,10 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     // --- Status bar ---
     let status = Paragraph::new(format!(
-        "q: quit | r: reset | producer in-flight: {} | modfuncs: {}",
+        "q: quit | r: reset | producer in-flight: {} | modfuncs: {} | bpm: {:2}",
         if app.in_flight { "YES" } else { "no" },
-        cfg.modfuncs.len()
+        cfg.modfuncs.len(),
+        cfg.bpm
     ));
     f.render_widget(status, outer[3]);
 }
@@ -253,14 +257,14 @@ pub fn run_tui(
     ui_rx: mpsc::Receiver<UiEvent>,
     stop_tx: mpsc::Sender<()>,
     tui_events_tx: mpsc::Sender<TUIEvent>,
+    tempo_tx: mpsc::Sender<f64>,
 ) -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = ratatui::backend::CrosstermBackend::new(stdout);
     let mut terminal = ratatui::Terminal::new(backend)?;
-
-    let mut app = App::new(cfg, melody);
+    let mut app = App::new(Arc::clone(&cfg), melody);
 
     // UI tick so the screen refreshes even if no events arrive
     let tick_rate = Duration::from_millis(60);
@@ -277,6 +281,24 @@ pub fn run_tui(
 
                 if k.code == KeyCode::Char('r') {
                     let _ = tui_events_tx.send(TUIEvent::Reset);
+                }
+
+                if k.code == KeyCode::Up {
+                    let new_bpm = {
+                        let mut cfg = cfg.lock().unwrap();
+                        cfg.bpm = (cfg.bpm + BPM_STEP).clamp(BPM_MIN, BPM_MAX);
+                        cfg.bpm
+                    };
+                    let _ = tempo_tx.send(new_bpm);
+                }
+
+                if k.code == KeyCode::Down {
+                    let new_bpm = {
+                        let mut cfg = cfg.lock().unwrap();
+                        cfg.bpm = (cfg.bpm - BPM_STEP).clamp(BPM_MIN, BPM_MAX);
+                        cfg.bpm
+                    };
+                    let _ = tempo_tx.send(new_bpm);
                 }
             }
         }
