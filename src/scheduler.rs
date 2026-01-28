@@ -6,6 +6,10 @@ use std::time::{Duration, Instant};
 
 const MIDI_CLOCK: u8 = 0xF8;
 
+pub const BASS_INSTRUMENT_CHAN: u8 = 0;
+pub const MID_INSTRUMENT_CHAN: u8 = 1;
+pub const HIGH_INSTRUMENT_CHAN: u8 = 2;
+
 fn tick_period_from_bpm(tpq: u64, bpm: f64) -> Duration {
     let tpq = tpq.max(1) as f64;
     let bpm = bpm.max(1e-6); // avoid div-by-zero / nonsense
@@ -271,9 +275,9 @@ impl Scheduler {
                         self.rebuild_heap_at_boundary(ev.abs_tick);
 
                         // We send the mediants as CC messages on channel 4
-                        send_cc(conn_out, 1, 10, mediants[0]);
-                        send_cc(conn_out, 2, 10, mediants[1]);
-                        send_cc(conn_out, 3, 10, mediants[2]);
+                        send_cc(conn_out, BASS_INSTRUMENT_CHAN, 10, mediants[0]);
+                        send_cc(conn_out, MID_INSTRUMENT_CHAN, 10, mediants[1]);
+                        send_cc(conn_out, HIGH_INSTRUMENT_CHAN, 10, mediants[2]);
 
                         // NOTE: MIDI clock stream stays in heap (independent), so we don't clear it here.
                         // rebuild_heap_at_boundary() only rebuilds note/boundary events; it does not touch MidiClock.

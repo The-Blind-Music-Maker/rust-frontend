@@ -14,7 +14,10 @@ mod scheduler;
 mod tui;
 
 use crate::midievol::{Melody, MidievolConfig};
-use crate::scheduler::{LoopData, NoteEvent, Scheduler, TrackData, send_realtime};
+use crate::scheduler::{
+    BASS_INSTRUMENT_CHAN, HIGH_INSTRUMENT_CHAN, LoopData, MID_INSTRUMENT_CHAN, NoteEvent,
+    Scheduler, TrackData, send_realtime,
+};
 use crate::tui::{TUIEvent, UiEvent, pitch_x10_to_midi, run_tui};
 
 const MIDI_START: u8 = 0xFA;
@@ -480,8 +483,15 @@ fn producer(
             state.last_melody = new_melody;
             *melody_ui.lock().unwrap() = Some(state.last_melody.clone());
 
-            let loop_data =
-                melody_to_loop_data(&state.last_melody, tpq, &state.cfg.voices, 0, 1, 2, 64);
+            let loop_data = melody_to_loop_data(
+                &state.last_melody,
+                tpq,
+                &state.cfg.voices,
+                BASS_INSTRUMENT_CHAN,
+                MID_INSTRUMENT_CHAN,
+                HIGH_INSTRUMENT_CHAN,
+                64,
+            );
 
             if loop_tx.send(loop_data).is_err() {
                 return;
