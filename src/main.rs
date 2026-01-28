@@ -9,244 +9,16 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crossterm::{
-    event::{self, Event as CEvent, KeyCode},
-    execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
-};
-use ratatui::{
-    prelude::*,
-    widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap},
-};
-
 mod midievol;
 mod scheduler;
+mod tui;
+
 use crate::midievol::{Melody, MidievolConfig};
 use crate::scheduler::{LoopData, NoteEvent, Scheduler, TrackData, send_realtime};
-
-const NOTES: [&str; 12] = [
-    "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-];
-
-fn pitch_to_note(pitch: u32) -> &'static str {
-    let midi = pitch_x10_to_midi(pitch) as usize;
-    NOTES[midi % 12]
-}
-
-fn melody_summary(m: &midievol::Melody, max_notes: usize) -> String {
-    let n = m.notes.len();
-    let mut parts: Vec<String> = Vec::new();
-
-    let len_ticks = m
-        .notes
-        .iter()
-        .map(|x| (x.position + x.length) as u64)
-        .max()
-        .unwrap_or(0);
-
-    // 600 ticks = 1 quarter note, round
-    let len_q = (len_ticks + 600 - 1) / 600;
-
-    // Basic stats
-    parts.push(format!("bpm={}", m.bpm));
-    parts.push(format!("score={:.3}", m.score));
-    parts.push(format!("notes={}", n));
-
-    parts.push(format!("len_q={}", len_q));
-
-    // // DNA (truncate so it doesn't blow up the log pane)
-    // let dna = if m.dna.len() > 24 {
-    //     format!("{}…", &m.dna[..24])
-    // } else {
-    //     m.dna.clone()
-    // };
-    // parts.push(format!("dna={}", dna));
-
-    // Preview first few notes as (pos,pitch,len,vol)
-    if n > 0 {
-        let preview = m
-            .notes
-            .iter()
-            .take(max_notes)
-            .map(|x| {
-                format!(
-                    "({},{}[{}],{},{})",
-                    x.position,
-                    pitch_x10_to_midi(x.pitch),
-                    pitch_to_note(x.pitch),
-                    x.length,
-                    x.volume
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
-        if n > max_notes {
-            parts.push(format!("preview: {} …", preview));
-        } else {
-            parts.push(format!("preview: {}", preview));
-        }
-    }
-
-    parts.join(" | ")
-}
-
-fn draw_ui(f: &mut Frame, app: &App) {
-    let outer = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(8),    // config table
-            Constraint::Length(7), // NEW: current melody pane
-            Constraint::Length(8), // log pane
-            Constraint::Length(1), // status bar
-        ])
-        .split(f.area());
-
-    // --- Config table ---
-    let cfg = app.cfg.lock().unwrap().clone();
-
-    let header = Row::new(vec![
-        Cell::from("ModFunc"),
-        Cell::from("Weight"),
-        Cell::from("Params"),
-    ])
-    .style(Style::default().add_modifier(Modifier::BOLD));
-
-    let rows = cfg.modfuncs.iter().map(|mf| {
-        let params = if mf.params.is_empty() {
-            "-".to_string()
-        } else {
-            mf.params
-                .iter()
-                .map(|p| {
-                    format!(
-                        "{}={:.3} [{},{}] {:?}",
-                        p.name, p.value, p.range[0], p.range[1], p.t
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join(" | ")
-        };
-
-        Row::new(vec![
-            Cell::from(mf.name.clone()),
-            Cell::from(format!("{:.3}", mf.weight)),
-            Cell::from(params),
-        ])
-    });
-
-    let table = Table::new(
-        rows,
-        [
-            Constraint::Length(26),
-            Constraint::Length(8),
-            Constraint::Min(10),
-        ],
-    )
-    .header(header)
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title("Config (live)"),
-    )
-    .column_spacing(1);
-
-    f.render_widget(table, outer[0]);
-
-    let melody_text = {
-        let m = app.melody.lock().unwrap();
-        if let Some(m) = m.as_ref() {
-            melody_summary(m, 40) // reuse your helper
-        } else {
-            "No melody yet".to_string()
-        }
-    };
-
-    let melody_box = Paragraph::new(melody_text)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Current Melody"),
-        )
-        .wrap(Wrap { trim: false });
-
-    f.render_widget(melody_box, outer[1]);
-
-    // --- Logs (auto-follow newest) ---
-    let area = outer[2];
-
-    // Each entry is one line (no wrapping awareness, but good enough for most logs)
-    let lines: Vec<Line> = app.logs.iter().cloned().map(Line::from).collect();
-
-    let total_lines = lines.len() as u16;
-
-    // Visible height inside the bordered block (minus top+bottom borders)
-    let inner_h = area.height.saturating_sub(2);
-
-    // Scroll so the last lines are visible
-    let scroll_y = total_lines.saturating_sub(inner_h);
-
-    let logs = Paragraph::new(Text::from(lines))
-        .block(Block::default().borders(Borders::ALL).title("Log"))
-        .wrap(Wrap { trim: false })
-        .scroll((scroll_y, 0));
-
-    f.render_widget(logs, area);
-
-    // --- Status bar ---
-    let status = Paragraph::new(format!(
-        "q: quit | producer in-flight: {} | modfuncs: {}",
-        if app.in_flight { "YES" } else { "no" },
-        cfg.modfuncs.len()
-    ));
-    f.render_widget(status, outer[3]);
-}
+use crate::tui::{TUIEvent, UiEvent, pitch_x10_to_midi, run_tui};
 
 const MIDI_START: u8 = 0xFA;
 const MIDI_STOP: u8 = 0xFC;
-
-#[derive(Clone, Debug)]
-enum UiEvent {
-    // Log(String),
-    CcApplied {
-        ch: u8,
-        cc: u8,
-        val: u8,
-        target: String,
-        new_value: String,
-    },
-    ProducerInFlight(bool),
-    ProducerResult(String),
-    // Tick,
-}
-
-struct App {
-    cfg: Arc<Mutex<midievol::MidievolConfig>>,
-    melody: Arc<Mutex<Option<midievol::Melody>>>, // NEW
-    logs: std::collections::VecDeque<String>,
-    in_flight: bool,
-}
-
-impl App {
-    fn new(
-        cfg: Arc<Mutex<midievol::MidievolConfig>>,
-        melody: Arc<Mutex<Option<midievol::Melody>>>, // NEW
-    ) -> Self {
-        Self {
-            cfg,
-            melody,
-            logs: std::collections::VecDeque::with_capacity(500),
-            in_flight: false,
-        }
-    }
-
-    fn push_log(&mut self, s: impl Into<String>) {
-        let s = s.into();
-        if self.logs.len() == 500 {
-            self.logs.pop_front();
-        }
-        self.logs.push_back(s);
-    }
-}
 
 #[derive(Clone, Copy, Debug)]
 struct MidiCc {
@@ -264,12 +36,6 @@ struct EvolveState {
 
 fn clamp_velocity(v: u64) -> u8 {
     v.min(127) as u8
-}
-
-fn pitch_x10_to_midi(pitch_x10: u32) -> u8 {
-    // Use f64 to round correctly
-    let midi = ((pitch_x10 + 240) as f64 / 10.0).round();
-    midi.clamp(0.0, 127.0) as u8
 }
 
 fn round_up_to_multiple(x: u64, multiple: u64) -> u64 {
@@ -319,6 +85,34 @@ fn make_metronome_track(
     }
 }
 
+fn median_length_to_cc(events: &[NoteEvent], min_ticks: u64, max_ticks: u64) -> Option<u8> {
+    if events.is_empty() {
+        return None;
+    }
+
+    // 1) collect lengths
+    let mut lengths: Vec<u64> = events.iter().map(|e| e.length_ticks).collect();
+
+    // 2) sort for median
+    lengths.sort_unstable();
+
+    // 3) median
+    let n = lengths.len();
+    let median = if n % 2 == 1 {
+        lengths[n / 2]
+    } else {
+        (lengths[n / 2 - 1] + lengths[n / 2]) / 2
+    };
+
+    // 4) clamp
+    let clamped = median.clamp(min_ticks, max_ticks);
+
+    // 5) normalize → MIDI CC
+    let normalized = (clamped - min_ticks) as f64 / (max_ticks - min_ticks) as f64;
+
+    Some((normalized * 127.0).round() as u8)
+}
+
 fn melody_to_loop_data(
     m: &midievol::Melody,
     tpq: u64,
@@ -357,8 +151,11 @@ fn melody_to_loop_data(
     }
 
     low_events.sort_by_key(|e| e.start_tick);
+    let low_median_cc = { median_length_to_cc(&low_events, 75, 2400).unwrap_or(0) };
     mid_events.sort_by_key(|e| e.start_tick);
+    let mid_median_cc = { median_length_to_cc(&mid_events, 75, 2400).unwrap_or(0) };
     high_events.sort_by_key(|e| e.start_tick);
+    let high_median_cc = { median_length_to_cc(&high_events, 75, 2400).unwrap_or(0) };
 
     // Compute loop length from all events (across all buckets)
     let raw_end = low_events
@@ -402,6 +199,7 @@ fn melody_to_loop_data(
     let mut loop_data = LoopData {
         loop_len_ticks,
         tracks,
+        voice_mediants: [low_median_cc, mid_median_cc, high_median_cc],
     };
 
     // Add metronome track (unchanged)
@@ -425,85 +223,11 @@ fn main() {
     env_logger::init();
     let cfg = midievol::load_config("./config/config.yaml").unwrap();
 
-    let mut r = rand::rng();
-    let dna = midievol::create_random_melody(8, &mut r);
-
-    let init_payload = midievol::InitPayload {
-        dna: dna,
-        voices: cfg.voices.clone(),
-        modfuncs: cfg.modfuncs.clone(),
-    };
-
-    let melody = midievol::send_init_req("http://localhost:8080/init", init_payload).unwrap();
+    let melody = generate_new_melody(&cfg);
 
     if let Err(e) = run(melody, cfg) {
         eprintln!("Error: {e}");
     }
-}
-
-fn run_tui(
-    cfg: Arc<Mutex<midievol::MidievolConfig>>,
-    melody: Arc<Mutex<Option<midievol::Melody>>>, // NEW
-    ui_rx: mpsc::Receiver<UiEvent>,
-    stop_tx: mpsc::Sender<()>,
-) -> Result<(), Box<dyn Error>> {
-    enable_raw_mode()?;
-    let mut stdout = std::io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    let backend = ratatui::backend::CrosstermBackend::new(stdout);
-    let mut terminal = ratatui::Terminal::new(backend)?;
-
-    let mut app = App::new(cfg, melody);
-
-    // UI tick so the screen refreshes even if no events arrive
-    let tick_rate = Duration::from_millis(60);
-    let mut last_tick = Instant::now();
-
-    loop {
-        // 1) handle keyboard
-        if event::poll(Duration::from_millis(1))? {
-            if let CEvent::Key(k) = event::read()? {
-                if k.code == KeyCode::Char('q') {
-                    let _ = stop_tx.send(());
-                    break;
-                }
-            }
-        }
-
-        // 2) drain UI events
-        while let Ok(ev) = ui_rx.try_recv() {
-            match ev {
-                // UiEvent::Log(s) => app.push_log(s),
-                UiEvent::ProducerInFlight(x) => app.in_flight = x,
-                UiEvent::ProducerResult(s) => app.push_log(format!("[producer] {s}")),
-                UiEvent::CcApplied {
-                    ch,
-                    cc,
-                    val,
-                    target,
-                    new_value,
-                } => {
-                    app.push_log(format!(
-                        "[cc] ch={ch} cc={cc} val={val} -> {target}={new_value}"
-                    ));
-                } // UiEvent::Tick => {}
-            }
-        }
-
-        // 3) periodic tick
-        if last_tick.elapsed() >= tick_rate {
-            last_tick = Instant::now();
-        }
-
-        // 4) draw
-        terminal.draw(|f| draw_ui(f, &app))?;
-    }
-
-    // teardown
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-    terminal.show_cursor()?;
-    Ok(())
 }
 
 fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
@@ -562,6 +286,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
 
     // NEW: UI channel
     let (ui_tx, ui_rx) = mpsc::channel::<UiEvent>();
+    let (tui_tx, tui_rx) = mpsc::channel::<TUIEvent>();
 
     // NEW: shared cfg snapshot for UI
     let cfg_ui = Arc::new(Mutex::new(cfg.clone()));
@@ -574,7 +299,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
         let melody_ui = Arc::clone(&melody_ui); // NEW
         let stop_tx2 = stop_tx.clone();
         thread::spawn(move || {
-            if let Err(e) = run_tui(cfg_ui, melody_ui, ui_rx, stop_tx2) {
+            if let Err(e) = run_tui(cfg_ui, melody_ui, ui_rx, stop_tx2, tui_tx) {
                 eprintln!("TUI error: {e}");
             }
         });
@@ -606,7 +331,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
         let cfg_ui = Arc::clone(&cfg_ui);
         let melody_ui = Arc::clone(&melody_ui); // NEW
         thread::spawn(move || {
-            producer_example_with_ui(
+            producer(
                 loop_tx,
                 boundary_rx,
                 cc_rx,
@@ -616,6 +341,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
                     cfg,
                 },
                 ui_tx,
+                tui_rx,
                 cfg_ui,
                 melody_ui, // NEW
             );
@@ -654,29 +380,70 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
 
 // ======================= producer example =======================
 
-fn producer_example_with_ui(
+fn generate_new_melody(cfg: &MidievolConfig) -> Melody {
+    let mut r = rand::rng();
+    let dna = midievol::create_random_melody(8, &mut r);
+
+    let init_payload = midievol::InitPayload {
+        dna: dna,
+        voices: cfg.voices.clone(),
+        modfuncs: cfg.modfuncs.clone(),
+    };
+
+    midievol::send_init_req("http://localhost:8080/init", init_payload).unwrap()
+}
+
+fn producer(
     loop_tx: mpsc::Sender<LoopData>,
     boundary_rx: mpsc::Receiver<()>,
     cc_rx: mpsc::Receiver<MidiCc>,
     tpq: u64,
     mut state: EvolveState,
     ui_tx: mpsc::Sender<UiEvent>,
+    tui_rx: mpsc::Receiver<TUIEvent>, // <-- FIXED
     cfg_ui: Arc<Mutex<midievol::MidievolConfig>>,
-    melody_ui: Arc<Mutex<Option<midievol::Melody>>>, // NEW
+    melody_ui: Arc<Mutex<Option<midievol::Melody>>>,
 ) {
-    let (result_tx, result_rx) = mpsc::channel::<Melody>();
+    let (result_tx, result_rx) = mpsc::channel::<(u64, Melody)>();
     let mut in_flight = false;
+    let mut token: u64 = 0;
 
     let cc_map = build_cc_map_from_cfg(&state.cfg);
+
     loop {
+        // ---------------- TUI events (Reset) ----------------
+        while let Ok(ev) = tui_rx.try_recv() {
+            match ev {
+                TUIEvent::Reset => {
+                    // Invalidate any in-flight evolve result
+                    token = token.wrapping_add(1);
+                    in_flight = true; // we are now "in flight" for the init request
+                    let my_token = token;
+
+                    let _ = ui_tx.send(UiEvent::ProducerInFlight(true));
+                    let _ = ui_tx.send(UiEvent::ProducerResult(
+                        "reset: generating new melody...".into(),
+                    ));
+
+                    // Grab current config to build init payload
+                    // (Use cfg_ui snapshot or state.cfg; both should be same-ish)
+                    let cfg = { cfg_ui.lock().unwrap().clone() };
+
+                    let tx = result_tx.clone();
+                    thread::spawn(move || {
+                        let melody = generate_new_melody(&cfg);
+                        let _ = tx.send((my_token, melody));
+                    });
+                }
+            }
+        }
+
+        // ---------------- CC updates ----------------
         while let Ok(msg) = cc_rx.try_recv() {
-            // apply & also produce a human-readable "what changed"
             if let Some((target, new_value)) =
                 apply_cc_with_map_and_describe(&mut state.cfg, &cc_map, msg)
             {
-                // update UI snapshot
                 *cfg_ui.lock().unwrap() = state.cfg.clone();
-
                 let _ = ui_tx.send(UiEvent::CcApplied {
                     ch: msg.ch,
                     cc: msg.cc,
@@ -687,25 +454,37 @@ fn producer_example_with_ui(
             }
         }
 
-        while let Ok(new_melody) = result_rx.try_recv() {
+        // ---------------- Apply results (init/evolve) ----------------
+        while let Ok((res_token, new_melody)) = result_rx.try_recv() {
+            // Ignore stale results (e.g., an evolve response arriving after Reset)
+            if res_token != token {
+                continue;
+            }
+
             in_flight = false;
             let _ = ui_tx.send(UiEvent::ProducerInFlight(false));
-            state.last_melody = new_melody;
 
+            state.last_melody = new_melody;
             *melody_ui.lock().unwrap() = Some(state.last_melody.clone());
 
             let loop_data =
                 melody_to_loop_data(&state.last_melody, tpq, &state.cfg.voices, 0, 1, 2, 64);
+
             if loop_tx.send(loop_data).is_err() {
                 return;
             }
+
             let _ = ui_tx.send(UiEvent::ProducerResult("new melody applied".into()));
         }
 
+        // ---------------- Boundary tick -> evolve ----------------
         match boundary_rx.recv_timeout(Duration::from_millis(50)) {
             Ok(()) => {
                 if !in_flight {
                     in_flight = true;
+                    token = token.wrapping_add(1);
+                    let my_token = token;
+
                     let _ = ui_tx.send(UiEvent::ProducerInFlight(true));
 
                     let tx = result_tx.clone();
@@ -721,7 +500,7 @@ fn producer_example_with_ui(
                         let melody =
                             midievol::send_evolve_req("http://localhost:8080/evolve", payload)
                                 .unwrap();
-                        let _ = tx.send(melody);
+                        let _ = tx.send((my_token, melody));
                     });
                 }
             }

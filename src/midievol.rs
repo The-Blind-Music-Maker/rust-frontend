@@ -200,7 +200,8 @@ pub fn send_init_req(
     let txt = response.text().unwrap();
 
     // Deserialize JSON body into Melody
-    let melody: Melody = serde_json::from_str(&txt).unwrap(); //response.json()?;
+
+    let melody: Melody = serde_json::from_str(&txt)?;
 
     Ok(melody)
 }

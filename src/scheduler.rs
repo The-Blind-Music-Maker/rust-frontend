@@ -17,6 +17,13 @@ pub fn note_on(conn_out: &mut midir::MidiOutputConnection, ch: u8, note: u8, vel
     let _ = conn_out.send(&[status, note, vel]);
 }
 
+pub fn send_cc(conn_out: &mut midir::MidiOutputConnection, ch: u8, cc: u8, value: u8) {
+    let status = 0xB0 | (ch & 0x0F);
+    let cc = cc & 0x7F; // ensure 0..127
+    let value = value & 0x7F; // ensure 0..127
+    let _ = conn_out.send(&[status, cc, value]);
+}
+
 pub fn note_off(conn_out: &mut midir::MidiOutputConnection, ch: u8, note: u8) {
     let status = 0x80 | (ch & 0x0F);
     let _ = conn_out.send(&[status, note, 0]);
@@ -33,6 +40,7 @@ pub fn all_notes_off(conn_out: &mut midir::MidiOutputConnection) {
 pub struct LoopData {
     pub loop_len_ticks: u64,
     pub tracks: Vec<TrackData>,
+    pub voice_mediants: [u8; 3],
 }
 
 #[derive(Clone, Debug)]
@@ -224,8 +232,14 @@ impl Scheduler {
                     // swap at boundary if a new loop arrived
                     if let Some(new_loop) = pending.take() {
                         all_notes_off(conn_out);
+                        let mediants = &new_loop.voice_mediants.clone();
                         self.current = new_loop;
                         self.rebuild_heap_at_boundary(ev.abs_tick);
+
+                        // We send the mediants as CC messages on channel 4
+                        send_cc(conn_out, 3, 1, mediants[0]);
+                        send_cc(conn_out, 3, 2, mediants[1]);
+                        send_cc(conn_out, 3, 3, mediants[2]);
 
                         // NOTE: MIDI clock stream stays in heap (independent), so we don't clear it here.
                         // rebuild_heap_at_boundary() only rebuilds note/boundary events; it does not touch MidiClock.
