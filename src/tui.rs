@@ -20,6 +20,8 @@ pub enum TUIEvent {
     Reset,
 }
 
+const BPM_UP_KEY: &str = "↑";
+const BPM_DOWN_KEY: &str = "↓";
 const BPM_STEP: f64 = 1.0;
 const BPM_MIN: f64 = 20.0;
 const BPM_MAX: f64 = 300.0;
@@ -199,11 +201,14 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     // --- Status bar ---
     let status = Paragraph::new(format!(
-        "q: quit | r: reset | producer in-flight: {} | modfuncs: {} | bpm: {:2}",
+        "q: quit | r: reset | {}{}: bpm | producer in-flight: {} | modfuncs: {} | bpm: {:3.0}",
+        BPM_DOWN_KEY,
+        BPM_UP_KEY,
         if app.in_flight { "YES" } else { "no" },
         cfg.modfuncs.len(),
         cfg.bpm
     ));
+
     f.render_widget(status, outer[3]);
 }
 
