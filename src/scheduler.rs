@@ -271,9 +271,9 @@ impl Scheduler {
                         self.rebuild_heap_at_boundary(ev.abs_tick);
 
                         // We send the mediants as CC messages on channel 4
-                        send_cc(conn_out, 3, 1, mediants[0]);
-                        send_cc(conn_out, 3, 2, mediants[1]);
-                        send_cc(conn_out, 3, 3, mediants[2]);
+                        send_cc(conn_out, 1, 10, mediants[0]);
+                        send_cc(conn_out, 2, 10, mediants[1]);
+                        send_cc(conn_out, 3, 10, mediants[2]);
 
                         // NOTE: MIDI clock stream stays in heap (independent), so we don't clear it here.
                         // rebuild_heap_at_boundary() only rebuilds note/boundary events; it does not touch MidiClock.
