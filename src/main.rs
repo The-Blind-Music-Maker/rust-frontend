@@ -450,6 +450,8 @@ fn producer(
                         let _ = tx.send((my_token, melody));
                     });
                 }
+                TUIEvent::SetChildren(children) => state.cfg.children = children,
+                TUIEvent::SetXGens(x_gens) => state.cfg.x_gens = x_gens,
                 _ => {}
             }
         }

@@ -11,7 +11,7 @@ use crossterm::{
 };
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap},
+    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
 
 use crate::midievol;
@@ -19,6 +19,8 @@ use crate::midievol;
 pub enum TUIEvent {
     Reset,
     NewBPM(f64),
+    SetChildren(u32),
+    SetXGens(u32),
     SendStart,
     SendStop,
 }
@@ -204,15 +206,18 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     // --- Status bar ---
     let status = Paragraph::new(format!(
-        "q: quit | r: reset | p: send play signal | s: send stop signal | {}{}: bpm | producer in-flight: {} | modfuncs: {} | bpm: {:3.0}",
+        "(q)uit | (r)eset | send (p)lay signal | send (s)top signal | {}{} or (b)pm: {:3.0} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
         BPM_DOWN_KEY,
         BPM_UP_KEY,
+        cfg.bpm,
+        cfg.x_gens,
+        cfg.children,
         if app.in_flight { "YES" } else { "no" },
-        cfg.modfuncs.len(),
-        cfg.bpm
     ));
 
     f.render_widget(status, outer[3]);
+
+    draw_input_modal(f, &app.modal);
 }
 
 #[derive(Clone, Debug)]
@@ -230,10 +235,104 @@ pub enum UiEvent {
     // Tick,
 }
 
+enum ModalOutcome {
+    NotOpen,
+    Consumed,
+    Submit(String),
+    Cancel,
+}
+
+fn handle_modal_key(modal: &mut InputModal, code: KeyCode) -> ModalOutcome {
+    if !modal.open {
+        return ModalOutcome::NotOpen;
+    }
+
+    match code {
+        KeyCode::Esc => {
+            modal.close();
+            ModalOutcome::Cancel
+        }
+        KeyCode::Enter => {
+            let s = modal.input.trim().to_string();
+            // keep modal open for now; caller decides to close on success
+            ModalOutcome::Submit(s)
+        }
+        KeyCode::Backspace => {
+            modal.input.pop();
+            modal.error = None;
+            ModalOutcome::Consumed
+        }
+        KeyCode::Char(c) => {
+            if !c.is_control() {
+                modal.input.push(c);
+                modal.error = None;
+            }
+            ModalOutcome::Consumed
+        }
+        _ => ModalOutcome::Consumed,
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum ModalKind {
+    None,
+    SetBpm,
+    SetChildren,
+    SetXGens,
+    // Add more:
+    // SetWeight { modfunc_index: usize },
+    // SetParam { modfunc_index: usize, param_index: usize },
+}
+
+#[derive(Clone, Debug)]
+pub struct InputModal {
+    pub open: bool,
+    pub kind: ModalKind, // NEW
+    pub title: String,
+    pub help: String,
+    pub input: String,
+    pub error: Option<String>,
+}
+
+impl InputModal {
+    pub fn closed() -> Self {
+        Self {
+            open: false,
+            kind: ModalKind::None,
+            title: String::new(),
+            help: String::new(),
+            input: String::new(),
+            error: None,
+        }
+    }
+
+    pub fn open_with(
+        &mut self,
+        kind: ModalKind,
+        title: impl Into<String>,
+        help: impl Into<String>,
+        initial: impl Into<String>,
+    ) {
+        self.open = true;
+        self.kind = kind;
+        self.title = title.into();
+        self.help = help.into();
+        self.input = initial.into();
+        self.error = None;
+    }
+
+    pub fn close(&mut self) {
+        self.open = false;
+        self.input.clear();
+        self.error = None;
+    }
+}
+
 pub struct App {
     cfg: Arc<Mutex<midievol::MidievolConfig>>,
-    melody: Arc<Mutex<Option<midievol::Melody>>>, // NEW
+    melody: Arc<Mutex<Option<midievol::Melody>>>,
     logs: std::collections::VecDeque<String>,
+    modal: InputModal,
     in_flight: bool,
 }
 
@@ -247,6 +346,7 @@ impl App {
             melody,
             logs: std::collections::VecDeque::with_capacity(500),
             in_flight: false,
+            modal: InputModal::closed(),
         }
     }
 
@@ -257,6 +357,62 @@ impl App {
         }
         self.logs.push_back(s);
     }
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
+}
+
+fn draw_input_modal(f: &mut Frame, modal: &InputModal) {
+    if !modal.open {
+        return;
+    }
+
+    let area = centered_rect(55, 25, f.area());
+    f.render_widget(Clear, area);
+
+    let mut lines = vec![
+        Line::from(modal.help.clone()),
+        Line::from("Esc cancels • Enter confirms"),
+        Line::from(""),
+        Line::from(format!("> {}", modal.input)),
+    ];
+
+    if let Some(err) = &modal.error {
+        lines.push(Line::from(""));
+        lines.push(Line::from(err.clone()));
+    }
+
+    let p = Paragraph::new(Text::from(lines))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(modal.title.clone()),
+        )
+        .wrap(Wrap { trim: false });
+
+    f.render_widget(p, area);
+
+    // cursor after "> "
+    let cursor_x = area.x + 2 + 2 + modal.input.len() as u16;
+    let cursor_y = area.y + 1 + 3;
+    f.set_cursor_position((cursor_x - 1, cursor_y));
 }
 
 pub fn run_tui(
@@ -282,6 +438,120 @@ pub fn run_tui(
         // 1) handle keyboard
         if event::poll(Duration::from_millis(1))? {
             if let CEvent::Key(k) = event::read()? {
+                // 1) If modal is open, route everything to it and stop.
+                // If modal is open, it consumes input first
+                if app.modal.open {
+                    let kind = app.modal.kind.clone(); // copy kind now (no borrow issues)
+                    let outcome = handle_modal_key(&mut app.modal, k.code);
+
+                    match outcome {
+                        ModalOutcome::Submit(txt) => {
+                            // Apply based on kind (NOW it's safe to touch app/cfg/send)
+                            match kind {
+                                ModalKind::SetBpm => {
+                                    match txt.parse::<f64>() {
+                                        Ok(mut bpm) => {
+                                            bpm = bpm.clamp(BPM_MIN, BPM_MAX);
+                                            {
+                                                let mut cfg = cfg.lock().unwrap();
+                                                cfg.bpm = bpm;
+                                            }
+                                            let _ = tui_scheduler_tx.send(TUIEvent::NewBPM(bpm));
+                                            app.push_log(format!("[ui] bpm set to {bpm:.1}"));
+                                            app.modal.close();
+                                        }
+                                        Err(_) => {
+                                            app.modal.error = Some("Invalid number".to_string());
+                                            // keep modal open
+                                        }
+                                    }
+                                }
+                                ModalKind::SetChildren => {
+                                    match txt.parse::<u32>() {
+                                        Ok(mut children) => {
+                                            children = children.clamp(1, u32::max_value());
+                                            {
+                                                let mut cfg = cfg.lock().unwrap();
+                                                cfg.children = children;
+                                            }
+                                            let _ =
+                                                tui_events_tx.send(TUIEvent::SetChildren(children));
+                                            app.push_log(format!(
+                                                "[ui] children set to {children}"
+                                            ));
+                                            app.modal.close();
+                                        }
+                                        Err(_) => {
+                                            app.modal.error = Some("Invalid number".to_string());
+                                            // keep modal open
+                                        }
+                                    }
+                                }
+                                ModalKind::SetXGens => {
+                                    match txt.parse::<u32>() {
+                                        Ok(mut x_gens) => {
+                                            x_gens = x_gens.clamp(1, u32::max_value());
+                                            {
+                                                let mut cfg = cfg.lock().unwrap();
+                                                cfg.x_gens = x_gens;
+                                            }
+                                            let _ = tui_events_tx.send(TUIEvent::SetXGens(x_gens));
+                                            app.push_log(format!("[ui] x_gens set to {x_gens}"));
+                                            app.modal.close();
+                                        }
+                                        Err(_) => {
+                                            app.modal.error = Some("Invalid number".to_string());
+                                            // keep modal open
+                                        }
+                                    }
+                                }
+                                ModalKind::None => {
+                                    app.modal.close();
+                                } // add more modal kinds here later
+                            }
+                        }
+                        ModalOutcome::Cancel | ModalOutcome::Consumed => { /* nothing else */ }
+                        ModalOutcome::NotOpen => {}
+                    }
+
+                    // IMPORTANT: don't let modal keys fall through to normal UI
+                    continue;
+                }
+
+                // 2) Normal keys (open modal etc)
+                if k.code == KeyCode::Char('b') {
+                    let current = cfg.lock().unwrap().bpm;
+                    app.modal.open_with(
+                        ModalKind::SetBpm,
+                        "Set BPM",
+                        "Type a BPM (20..300) and press Enter.",
+                        format!("{current:.0}"),
+                    );
+                    continue;
+                }
+
+                if k.code == KeyCode::Char('x') {
+                    let current = cfg.lock().unwrap().x_gens;
+                    app.modal.open_with(
+                        ModalKind::SetXGens,
+                        "Set X-Gens",
+                        "Type a X-Gens (1..inf) and press Enter.",
+                        format!("{current:.0}"),
+                    );
+                    continue;
+                }
+
+                if k.code == KeyCode::Char('c') {
+                    let current = cfg.lock().unwrap().children;
+                    app.modal.open_with(
+                        ModalKind::SetChildren,
+                        "Set Children",
+                        "Type a Children (1..inf) and press Enter.",
+                        format!("{current:.0}"),
+                    );
+                    continue;
+                }
+
                 if k.code == KeyCode::Char('q') {
                     let _ = stop_tx.send(());
                     break;
