@@ -665,6 +665,12 @@ enum CcTarget {
     ModParam { mod_idx: usize, param_idx: usize },
 }
 
+fn cc_to_quantized_range(cc: u8, min: f32, max: f32, step: f32) -> f64 {
+    let t = cc as f32 / 127.0;
+    let raw = min + (max - min) * t;
+    ((raw / step).round() * step) as f64
+}
+
 fn apply_cc_with_map_and_describe(
     cfg: &mut midievol::MidievolConfig,
     map: &std::collections::HashMap<(Option<u8>, u8), CcTarget>,
@@ -678,17 +684,42 @@ fn apply_cc_with_map_and_describe(
     match target {
         CcTarget::ModWeight { mod_idx } => {
             let mf = cfg.modfuncs.get_mut(mod_idx)?;
-            mf.weight = lerp(0.0, 4.0, cc_to_unit(msg.val));
-            Some((format!("{}.weight", mf.name), format!("{:.3}", mf.weight)))
+            mf.weight = cc_to_quantized_range(msg.val, -5.0, 5.0, 0.2);
+            Some((format!("{}.weight", mf.name), format!("{:.1}", mf.weight)))
         }
         CcTarget::ModParam { mod_idx, param_idx } => {
             let mf = cfg.modfuncs.get_mut(mod_idx)?;
             let p = mf.params.get_mut(param_idx)?;
             p.value = map_cc_to_param_value(p, msg.val);
-            Some((format!("{}.{}", mf.name, p.name), format!("{:.3}", p.value)))
+            Some((format!("{}.{}", mf.name, p.name), format!("{:.2}", p.value)))
         }
     }
 }
+
+// fn apply_cc_with_map_and_describe(
+//     cfg: &mut midievol::MidievolConfig,
+//     map: &std::collections::HashMap<(Option<u8>, u8), CcTarget>,
+//     msg: MidiCc,
+// ) -> Option<(String, String)> {
+//     let key_exact = (Some(msg.ch & 0x0F), msg.cc);
+//     let key_any = (None, msg.cc);
+
+//     let target = map.get(&key_exact).or_else(|| map.get(&key_any)).copied()?;
+
+//     match target {
+//         CcTarget::ModWeight { mod_idx } => {
+//             let mf = cfg.modfuncs.get_mut(mod_idx)?;
+//             mf.weight = lerp(0.0, 4.0, cc_to_unit(msg.val));
+//             Some((format!("{}.weight", mf.name), format!("{:.3}", mf.weight)))
+//         }
+//         CcTarget::ModParam { mod_idx, param_idx } => {
+//             let mf = cfg.modfuncs.get_mut(mod_idx)?;
+//             let p = mf.params.get_mut(param_idx)?;
+//             p.value = map_cc_to_param_value(p, msg.val);
+//             Some((format!("{}.{}", mf.name, p.name), format!("{:.3}", p.value)))
+//         }
+//     }
+// }
 
 /// Key = (optional MIDI channel, CC number)
 /// - channel: None  => respond on any channel

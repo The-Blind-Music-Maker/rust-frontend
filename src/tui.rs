@@ -14,7 +14,7 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
 
-use crate::midievol;
+use crate::midievol::{self, ModFuncParamType};
 
 pub enum TUIEvent {
     Reset,
@@ -334,11 +334,25 @@ fn draw_ui(f: &mut Frame, app: &App) {
         } else {
             mf.params
                 .iter()
-                .map(|p| {
-                    format!(
-                        "{}={:.3} [{},{}] {:?}",
-                        p.name, p.value, p.range[0], p.range[1], p.t
-                    )
+                .map(|p| match p.t {
+                    ModFuncParamType::Note => {
+                        format!(
+                            "{}={:.3} [{},{}] {:?}",
+                            p.name, p.value, p.range[0], p.range[1], p.t
+                        )
+                    }
+                    ModFuncParamType::Float => {
+                        format!(
+                            "{}={:.3} [{},{}] {:?}",
+                            p.name, p.value, p.range[0], p.range[1], p.t
+                        )
+                    }
+                    ModFuncParamType::Int => {
+                        format!(
+                            "{}={:.0} [{},{}] {:?}",
+                            p.name, p.value, p.range[0], p.range[1], p.t
+                        )
+                    }
                 })
                 .collect::<Vec<_>>()
                 .join(" | ")
@@ -348,8 +362,8 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
         Row::new(vec![
             Cell::from(mf.name.clone()),
-            Cell::from(format!("{:.3}", mf.weight)),
-            Cell::from(format!("{:.3}", score)),
+            Cell::from(format!("{:.1}", mf.weight)),
+            Cell::from(format!("{:.1}", score)),
             Cell::from(params),
         ])
     });
