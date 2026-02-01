@@ -46,7 +46,11 @@ fn pitch_to_note(pitch: u32) -> &'static str {
     NOTES[midi % 12]
 }
 
-fn melody_summary(m: &midievol::Melody, max_notes: usize, cfg: Arc<Mutex<midievol::MidievolConfig>>) -> String {
+fn melody_summary(
+    m: &midievol::Melody,
+    max_notes: usize,
+    cfg: Arc<Mutex<midievol::MidievolConfig>>,
+) -> String {
     let n = m.notes.len();
     let mut parts: Vec<String> = Vec::new();
 
@@ -282,6 +286,41 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+fn wrap_logs_to_lines(
+    logs: &std::collections::VecDeque<String>,
+    wrap_width: usize,
+) -> Vec<Line<'static>> {
+    use textwrap::Options;
+
+    let opts = Options::new(wrap_width)
+        .break_words(true) // long tokens still wrap
+        .wrap_algorithm(textwrap::WrapAlgorithm::FirstFit);
+
+    let mut out: Vec<Line<'static>> = Vec::new();
+
+    for (i, s) in logs.iter().enumerate() {
+        // Preserve empty lines and also handle embedded '\n'
+        let parts = s.split('\n');
+
+        for part in parts {
+            if part.is_empty() {
+                out.push(Line::from(String::new()));
+                continue;
+            }
+
+            for w in textwrap::wrap(part, &opts) {
+                out.push(Line::from(w.into_owned()));
+            }
+        }
+
+        // Optional: add a blank line between entries
+        // if i + 1 < logs.len() { out.push(Line::from("")); }
+        let _ = i;
+    }
+
+    out
+}
+
 fn draw_input_modal(f: &mut Frame, modal: &InputModal) {
     if !modal.open {
         return;
@@ -362,7 +401,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     let mut info_len = 2;
     let mut rows = Vec::new();
-    
+
     for (idx, mf) in cfg.modfuncs.iter().enumerate() {
         let params = if mf.params.is_empty() {
             "-".to_string()
@@ -371,24 +410,37 @@ fn draw_ui(f: &mut Frame, app: &App) {
                 .iter()
                 .map(|p| match p.t {
                     ModFuncParamType::Note => {
-                        format!("{}={:.3} [{},{}] {:?}", p.name, p.value, p.range[0], p.range[1], p.t)
+                        format!(
+                            "{}={:.3} [{},{}] {:?}",
+                            p.name, p.value, p.range[0], p.range[1], p.t
+                        )
                     }
                     ModFuncParamType::Float => {
-                        format!("{}={:.3} [{},{}] {:?}", p.name, p.value, p.range[0], p.range[1], p.t)
+                        format!(
+                            "{}={:.3} [{},{}] {:?}",
+                            p.name, p.value, p.range[0], p.range[1], p.t
+                        )
                     }
                     ModFuncParamType::Int => {
-                        format!("{}={:.0} [{},{}] {:?}", p.name, p.value, p.range[0], p.range[1], p.t)
+                        format!(
+                            "{}={:.0} [{},{}] {:?}",
+                            p.name, p.value, p.range[0], p.range[1], p.t
+                        )
                     }
                 })
                 .collect::<Vec<_>>()
                 .join(" | ")
         };
-    
-        let score = scores[idx].clone().unwrap_or(Score { score: 0.0, info: vec![] });
+
+        let score = scores[idx].clone().unwrap_or(Score {
+            score: 0.0,
+            info: vec![],
+        });
+
         let info = extract_info(score.info);
-    
+
         info_len = info_len.max(info.len());
-    
+
         rows.push(Row::new(vec![
             Cell::from(mf.name.clone()),
             Cell::from(format!("{:.1}", mf.weight)),
@@ -440,19 +492,24 @@ fn draw_ui(f: &mut Frame, app: &App) {
     // --- Logs (auto-follow newest) ---
     let area = outer[2];
 
-    // Each entry is one line (no wrapping awareness, but good enough for most logs)
-    let lines: Vec<Line> = app.logs.iter().cloned().map(Line::from).collect();
+    // inside borders: -2 width and -2 height
+    let inner_w = area.width.saturating_sub(2) as usize;
+    let inner_h = area.height.saturating_sub(2) as u16;
 
-    let total_lines = lines.len() as u16;
+    // Avoid division by zero / weird widths
+    let inner_w = inner_w.max(1);
 
-    // Visible height inside the bordered block (minus top+bottom borders)
-    let inner_h = area.height.saturating_sub(2);
+    // Build wrapped visual lines
+    let wrapped_lines: Vec<Line> = wrap_logs_to_lines(&app.logs, inner_w);
 
-    // Scroll so the last lines are visible
-    let scroll_y = total_lines.saturating_sub(inner_h);
+    let total_visual_lines = wrapped_lines.len() as u16;
 
-    let logs = Paragraph::new(Text::from(lines))
+    // Scroll so the last visual lines are visible
+    let scroll_y = total_visual_lines.saturating_sub(inner_h);
+
+    let logs = Paragraph::new(Text::from(wrapped_lines))
         .block(Block::default().borders(Borders::ALL).title("Log"))
+        // IMPORTANT: we already wrapped manually, so don't wrap again
         .wrap(Wrap { trim: false })
         .scroll((scroll_y, 0));
 

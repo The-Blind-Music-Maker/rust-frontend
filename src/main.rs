@@ -10,10 +10,12 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 mod midievol;
+mod reconcile;
 mod scheduler;
 mod tui;
 
 use crate::midievol::{Melody, MidievolConfig};
+use crate::reconcile::ConfigReconciler;
 use crate::scheduler::{
     BASS_INSTRUMENT_CHAN, HIGH_INSTRUMENT_CHAN, LoopData, MID_INSTRUMENT_CHAN, NoteEvent,
     Scheduler, TrackData, send_realtime,
@@ -34,7 +36,8 @@ struct MidiCc {
 struct EvolveState {
     last_melody: midievol::Melody,
     // anything else you need: cfg.voices, cfg.modfuncs, rng seed, etc.
-    cfg: midievol::MidievolConfig,
+    // cfg: midievol::MidievolConfig,
+    reconciler: ConfigReconciler,
 }
 
 fn clamp_velocity(v: u64) -> u8 {
@@ -322,16 +325,21 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
         let ui_tx = ui_tx.clone();
         let cfg_ui = Arc::clone(&cfg_ui);
         let melody_ui = Arc::clone(&melody_ui); // NEW
+
+        let reconciler = ConfigReconciler::new(cfg);
+
+        let state = EvolveState {
+            last_melody: initial,
+            reconciler,
+        };
+
         thread::spawn(move || {
             producer(
                 loop_tx,
                 boundary_rx,
                 cc_rx,
                 tpq,
-                EvolveState {
-                    last_melody: initial,
-                    cfg,
-                },
+                state,
                 ui_tx,
                 tui_rx,
                 cfg_ui,
@@ -413,7 +421,7 @@ fn producer(
     let mut in_flight = false;
     let mut token: u64 = 0;
 
-    let cc_map = build_cc_map_from_cfg(&state.cfg);
+    let cc_map = build_cc_map_from_cfg(&state.reconciler.active);
 
     loop {
         // ---------------- TUI events (Reset) ----------------
@@ -440,23 +448,26 @@ fn producer(
                         let _ = tx.send((my_token, melody));
                     });
                 }
-                TUIEvent::SetChildren(children) => state.cfg.children = children,
-                TUIEvent::SetXGens(x_gens) => state.cfg.x_gens = x_gens,
+                TUIEvent::SetChildren(children) => state.reconciler.target.children = children,
+                TUIEvent::SetXGens(x_gens) => state.reconciler.target.x_gens = x_gens,
                 _ => {}
             }
         }
 
         // ---------------- CC updates ----------------
         while let Ok(msg) = cc_rx.try_recv() {
-            if let Some((target, new_value)) =
-                apply_cc_with_map_and_describe(&mut state.cfg, &cc_map, msg)
+            // Apply to TARGET (user intent)
+            if let Some((target_name, new_value)) =
+                apply_cc_with_map_and_describe(&mut state.reconciler.target, &cc_map, msg)
             {
-                *cfg_ui.lock().unwrap() = state.cfg.clone();
+                // publish the target to UI immediately so the UI reflects what the user did
+                *cfg_ui.lock().unwrap() = state.reconciler.target.clone();
+
                 let _ = ui_tx.send(UiEvent::CcApplied {
                     ch: msg.ch,
                     cc: msg.cc,
                     val: msg.val,
-                    target,
+                    target: target_name,
                     new_value,
                 });
             }
@@ -472,17 +483,17 @@ fn producer(
             in_flight = false;
             let _ = ui_tx.send(UiEvent::ProducerInFlight(false));
 
-            let scores = &new_melody.scores_per_func;
+            state.last_melody = new_melody;
 
+            let scores = &state.last_melody.scores_per_func;
             let _ = ui_tx.send(UiEvent::Log(format!("{scores:?}")));
 
-            state.last_melody = new_melody;
             *melody_ui.lock().unwrap() = Some(state.last_melody.clone());
 
             let loop_data = melody_to_loop_data(
                 &state.last_melody,
                 tpq,
-                &state.cfg.voices,
+                &state.reconciler.active.voices,
                 BASS_INSTRUMENT_CHAN,
                 MID_INSTRUMENT_CHAN,
                 HIGH_INSTRUMENT_CHAN,
@@ -504,15 +515,21 @@ fn producer(
                     token = token.wrapping_add(1);
                     let my_token = token;
 
+                    if state.reconciler.step() {
+                        let _ =
+                            ui_tx.send(UiEvent::Log("Reconciled config to match target".into()));
+                    }
+
                     let _ = ui_tx.send(UiEvent::ProducerInFlight(true));
 
                     let tx = result_tx.clone();
+                    let cfg = &state.reconciler.active;
                     let payload = midievol::EvolvePayload {
                         dna: state.last_melody.dna.clone(),
-                        x_gens: state.cfg.x_gens,
-                        children: state.cfg.children,
-                        voices: state.cfg.voices.clone(),
-                        modfuncs: state.cfg.modfuncs.clone(),
+                        x_gens: cfg.x_gens,
+                        children: cfg.children,
+                        voices: cfg.voices.clone(),
+                        modfuncs: cfg.modfuncs.clone(),
                     };
 
                     thread::spawn(move || {

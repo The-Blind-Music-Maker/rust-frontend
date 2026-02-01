@@ -148,6 +148,95 @@ pub struct MidievolConfig {
     pub modfuncs: Vec<ModFunc>,
 }
 
+impl MidievolConfig {
+    pub fn approx_eq(&self, other: &Self, tol: f64) -> bool {
+        voices_eq(&self.voices, &other.voices)
+            && self.x_gens == other.x_gens
+            && self.children == other.children
+            && feq(self.bpm, other.bpm, tol)
+            && vec_modfunc_eq(&self.modfuncs, &other.modfuncs, tol)
+    }
+}
+
+fn voices_eq(a: &Voices, b: &Voices) -> bool {
+    a.min == b.min && a.max == b.max
+}
+
+fn vec_modfunc_eq(a: &[ModFunc], b: &[ModFunc], tol: f64) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter()
+        .zip(b.iter())
+        .all(|(ma, mb)| modfunc_eq(ma, mb, tol))
+}
+
+fn modfunc_eq(a: &ModFunc, b: &ModFunc, tol: f64) -> bool {
+    a.name == b.name
+        && feq(a.weight, b.weight, tol)
+        && a.split_voices == b.split_voices
+        && a.has_normalized_score == b.has_normalized_score
+        && a.normalization_func == b.normalization_func
+        && a.voices == b.voices
+        && score_range_eq(a.score_range, b.score_range, tol)
+        && a.weight_cc == b.weight_cc
+        && a.weight_channel == b.weight_channel
+        && vec_param_eq(&a.params, &b.params, tol)
+}
+
+fn vec_param_eq(a: &[ModFuncParam], b: &[ModFuncParam], tol: f64) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter().zip(b.iter()).all(|(pa, pb)| param_eq(pa, pb, tol))
+}
+
+fn param_eq(a: &ModFuncParam, b: &ModFuncParam, tol: f64) -> bool {
+    a.name == b.name
+        && a.range == b.range
+        && feq(a.value, b.value, tol)
+        && param_type_eq(&a.t, &b.t)
+        && a.cc == b.cc
+        && a.channel == b.channel
+}
+
+fn param_type_eq(a: &ModFuncParamType, b: &ModFuncParamType) -> bool {
+    // enum; exact match is correct
+    std::mem::discriminant(a) == std::mem::discriminant(b)
+}
+
+fn score_range_eq(a: (Option<f64>, Option<f64>), b: (Option<f64>, Option<f64>), tol: f64) -> bool {
+    opt_f64_eq(a.0, b.0, tol) && opt_f64_eq(a.1, b.1, tol)
+}
+
+fn opt_f64_eq(a: Option<f64>, b: Option<f64>, tol: f64) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(x), Some(y)) => feq(x, y, tol),
+        _ => false,
+    }
+}
+
+/// A pretty robust float comparator:
+/// - absolute tolerance near 0
+/// - relative tolerance for larger magnitudes
+/// - treats NaN as never equal (including NaN vs NaN)
+fn feq(a: f64, b: f64, tol: f64) -> bool {
+    if a.is_nan() || b.is_nan() {
+        return false;
+    }
+    if a == b {
+        return true; // handles infinities too
+    }
+    let diff = (a - b).abs();
+    if diff <= tol {
+        return true;
+    }
+    // relative tolerance
+    let scale = a.abs().max(b.abs()).max(1.0);
+    diff <= tol * scale
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InitPayload {
     pub dna: String,
