@@ -363,7 +363,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
         Row::new(vec![
             Cell::from(mf.name.clone()),
             Cell::from(format!("{:.1}", mf.weight)),
-            Cell::from(format!("{:.1}", score)),
+            Cell::from(format!("{:.3}", score)),
             Cell::from(params),
         ])
     });

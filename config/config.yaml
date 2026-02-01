@@ -57,7 +57,18 @@ modFuncs:
   - name: scoreTonality
     weight: 1
     weightCC: 4
-    params: []
+    params:
+      - name: Enabled scales
+        range: [0, 8]
+        value: 4
+        # 000001 == 1 == "major"
+        # 000010 == 2 == "minor"
+        # 000100 == 4 == "altered_pent"
+        # 001000 == 8 == "whole_tone"
+        # 010000 == 16 == "lydian"
+        # 100000 == 32 == "major_pentatonic"
+        type: int
+        cc: 101
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: true
