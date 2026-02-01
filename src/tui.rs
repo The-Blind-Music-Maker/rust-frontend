@@ -102,127 +102,9 @@ fn melody_summary(m: &midievol::Melody, max_notes: usize) -> String {
     parts.join(" | ")
 }
 
-fn draw_ui(f: &mut Frame, app: &App) {
-    let outer = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(8),    // config table
-            Constraint::Length(7), // NEW: current melody pane
-            Constraint::Length(8), // log pane
-            Constraint::Length(1), // status bar
-        ])
-        .split(f.area());
-
-    // --- Config table ---
-    let cfg = app.cfg.lock().unwrap().clone();
-
-    let header = Row::new(vec![
-        Cell::from("ModFunc"),
-        Cell::from("Weight"),
-        Cell::from("Params"),
-    ])
-    .style(Style::default().add_modifier(Modifier::BOLD));
-
-    let rows = cfg.modfuncs.iter().map(|mf| {
-        let params = if mf.params.is_empty() {
-            "-".to_string()
-        } else {
-            mf.params
-                .iter()
-                .map(|p| {
-                    format!(
-                        "{}={:.3} [{},{}] {:?}",
-                        p.name, p.value, p.range[0], p.range[1], p.t
-                    )
-                })
-                .collect::<Vec<_>>()
-                .join(" | ")
-        };
-
-        Row::new(vec![
-            Cell::from(mf.name.clone()),
-            Cell::from(format!("{:.3}", mf.weight)),
-            Cell::from(params),
-        ])
-    });
-
-    let table = Table::new(
-        rows,
-        [
-            Constraint::Length(26),
-            Constraint::Length(8),
-            Constraint::Min(10),
-        ],
-    )
-    .header(header)
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title("Config (live)"),
-    )
-    .column_spacing(1);
-
-    f.render_widget(table, outer[0]);
-
-    let melody_text = {
-        let m = app.melody.lock().unwrap();
-        if let Some(m) = m.as_ref() {
-            melody_summary(m, 40) // reuse your helper
-        } else {
-            "No melody yet".to_string()
-        }
-    };
-
-    let melody_box = Paragraph::new(melody_text)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title("Current Melody"),
-        )
-        .wrap(Wrap { trim: false });
-
-    f.render_widget(melody_box, outer[1]);
-
-    // --- Logs (auto-follow newest) ---
-    let area = outer[2];
-
-    // Each entry is one line (no wrapping awareness, but good enough for most logs)
-    let lines: Vec<Line> = app.logs.iter().cloned().map(Line::from).collect();
-
-    let total_lines = lines.len() as u16;
-
-    // Visible height inside the bordered block (minus top+bottom borders)
-    let inner_h = area.height.saturating_sub(2);
-
-    // Scroll so the last lines are visible
-    let scroll_y = total_lines.saturating_sub(inner_h);
-
-    let logs = Paragraph::new(Text::from(lines))
-        .block(Block::default().borders(Borders::ALL).title("Log"))
-        .wrap(Wrap { trim: false })
-        .scroll((scroll_y, 0));
-
-    f.render_widget(logs, area);
-
-    // --- Status bar ---
-    let status = Paragraph::new(format!(
-        "(q)uit | (r)eset | send (p)lay signal | send (s)top signal | {}{} or (b)pm: {:3.0} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
-        BPM_DOWN_KEY,
-        BPM_UP_KEY,
-        cfg.bpm,
-        cfg.x_gens,
-        cfg.children,
-        if app.in_flight { "YES" } else { "no" },
-    ));
-
-    f.render_widget(status, outer[3]);
-
-    draw_input_modal(f, &app.modal);
-}
-
 #[derive(Clone, Debug)]
 pub enum UiEvent {
-    // Log(String),
+    Log(String),
     CcApplied {
         ch: u8,
         cc: u8,
@@ -415,6 +297,138 @@ fn draw_input_modal(f: &mut Frame, modal: &InputModal) {
     f.set_cursor_position((cursor_x - 1, cursor_y));
 }
 
+fn draw_ui(f: &mut Frame, app: &App) {
+    let outer = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(8),    // config table
+            Constraint::Length(7), // NEW: current melody pane
+            Constraint::Length(8), // log pane
+            Constraint::Length(1), // status bar
+        ])
+        .split(f.area());
+
+    // --- Config table ---
+    let cfg = app.cfg.lock().unwrap().clone();
+
+    let header = Row::new(vec![
+        Cell::from("ModFunc"),
+        Cell::from("Weight"),
+        Cell::from("Score"),
+        Cell::from("Params"),
+    ])
+    .style(Style::default().add_modifier(Modifier::BOLD));
+
+    let scores = {
+        let m = app.melody.lock().unwrap();
+        if let Some(m) = m.as_ref() {
+            m.scores_per_func.clone()
+        } else {
+            vec![]
+        }
+    };
+
+    let rows = cfg.modfuncs.iter().enumerate().map(|(idx, mf)| {
+        let params = if mf.params.is_empty() {
+            "-".to_string()
+        } else {
+            mf.params
+                .iter()
+                .map(|p| {
+                    format!(
+                        "{}={:.3} [{},{}] {:?}",
+                        p.name, p.value, p.range[0], p.range[1], p.t
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(" | ")
+        };
+
+        let score = scores[idx].unwrap_or(0.0);
+
+        Row::new(vec![
+            Cell::from(mf.name.clone()),
+            Cell::from(format!("{:.3}", mf.weight)),
+            Cell::from(format!("{:.3}", score)),
+            Cell::from(params),
+        ])
+    });
+
+    let table = Table::new(
+        rows,
+        [
+            Constraint::Length(26),
+            Constraint::Length(8),
+            Constraint::Length(5),
+            Constraint::Min(10),
+        ],
+    )
+    .header(header)
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Config (live)"),
+    )
+    .column_spacing(1);
+
+    f.render_widget(table, outer[0]);
+
+    let melody_text = {
+        let m = app.melody.lock().unwrap();
+        if let Some(m) = m.as_ref() {
+            melody_summary(m, 40) // reuse your helper
+        } else {
+            "No melody yet".to_string()
+        }
+    };
+
+    let melody_box = Paragraph::new(melody_text)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Current Melody"),
+        )
+        .wrap(Wrap { trim: false });
+
+    f.render_widget(melody_box, outer[1]);
+
+    // --- Logs (auto-follow newest) ---
+    let area = outer[2];
+
+    // Each entry is one line (no wrapping awareness, but good enough for most logs)
+    let lines: Vec<Line> = app.logs.iter().cloned().map(Line::from).collect();
+
+    let total_lines = lines.len() as u16;
+
+    // Visible height inside the bordered block (minus top+bottom borders)
+    let inner_h = area.height.saturating_sub(2);
+
+    // Scroll so the last lines are visible
+    let scroll_y = total_lines.saturating_sub(inner_h);
+
+    let logs = Paragraph::new(Text::from(lines))
+        .block(Block::default().borders(Borders::ALL).title("Log"))
+        .wrap(Wrap { trim: false })
+        .scroll((scroll_y, 0));
+
+    f.render_widget(logs, area);
+
+    // --- Status bar ---
+    let status = Paragraph::new(format!(
+        "(q)uit | (r)eset | send (p)lay signal | send (s)top signal | {}{} or (b)pm: {:3.0} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
+        BPM_DOWN_KEY,
+        BPM_UP_KEY,
+        cfg.bpm,
+        cfg.x_gens,
+        cfg.children,
+        if app.in_flight { "YES" } else { "no" },
+    ));
+
+    f.render_widget(status, outer[3]);
+
+    draw_input_modal(f, &app.modal);
+}
+
 pub fn run_tui(
     cfg: Arc<Mutex<midievol::MidievolConfig>>,
     melody: Arc<Mutex<Option<midievol::Melody>>>, // NEW
@@ -592,7 +606,7 @@ pub fn run_tui(
         // 2) drain UI events
         while let Ok(ev) = ui_rx.try_recv() {
             match ev {
-                // UiEvent::Log(s) => app.push_log(s),
+                UiEvent::Log(s) => app.push_log(s),
                 UiEvent::ProducerInFlight(x) => app.in_flight = x,
                 UiEvent::ProducerResult(s) => app.push_log(format!("[producer] {s}")),
                 UiEvent::CcApplied {

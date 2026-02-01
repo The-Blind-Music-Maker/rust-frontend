@@ -144,9 +144,9 @@ fn melody_to_loop_data(
 
         let ev = NoteEvent::note(n.position as u64, midi_note, (n.length as u64).max(1));
 
-        if midi_note < (voices.min & 0x7F) {
+        if n.pitch < (voices.min as u32 * 10) {
             low_events.push(ev);
-        } else if midi_note < (voices.max & 0x7F) {
+        } else if n.pitch < (voices.max as u32 * 10) {
             mid_events.push(ev);
         } else {
             high_events.push(ev);
@@ -259,17 +259,11 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     }
     let ticks_per_midi_clock: u64 = tpq / 24; // 600/24 = 25
 
-    // ---- Producer thread: fetch/generate loop updates in parallel ----
-    // let (loop_tx, loop_rx) = mpsc::channel::<LoopData>();
-    // thread::spawn(move || producer_example(loop_tx, tpq));
-
-    println!("Playback: {bpm} BPM, tpq={tpq} internal ticks/QN");
     println!(
         "MIDI clock: {} (every {} internal ticks)",
         if send_midi_clock { "ON" } else { "OFF" },
         ticks_per_midi_clock
     );
-    println!("Press Enter to stop.\n");
 
     // Transport start (optional)
     if send_transport {
@@ -277,25 +271,21 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     }
 
     let (stop_tx, stop_rx) = mpsc::channel::<()>();
-
     let (loop_tx, loop_rx) = mpsc::channel::<LoopData>();
     let (tui_scheduler_tx, tui_scheduler_rx) = mpsc::channel::<TUIEvent>();
     let (boundary_tx, boundary_rx) = mpsc::sync_channel::<()>(2);
-
     let (cc_tx, cc_rx) = mpsc::channel::<MidiCc>();
+    let (ui_tx, ui_rx) = mpsc::channel::<UiEvent>();
+    let (tui_tx, tui_rx) = mpsc::channel::<TUIEvent>();
+
     if let Some(data) = midi_in_data {
         let _midi_in_thread = spawn_midi_cc_listener(cc_tx, data.0, data.1);
     }
-
-    // NEW: UI channel
-    let (ui_tx, ui_rx) = mpsc::channel::<UiEvent>();
-    let (tui_tx, tui_rx) = mpsc::channel::<TUIEvent>();
 
     // NEW: shared cfg snapshot for UI
     let cfg_ui = Arc::new(Mutex::new(cfg.clone()));
     let melody_ui: Arc<Mutex<Option<Melody>>> = Arc::new(Mutex::new(Some(initial.clone())));
 
-    // spawn TUI
     // spawn TUI
     {
         let cfg_ui = Arc::clone(&cfg_ui);
@@ -481,6 +471,10 @@ fn producer(
 
             in_flight = false;
             let _ = ui_tx.send(UiEvent::ProducerInFlight(false));
+
+            let scores = &new_melody.scores_per_func;
+
+            let _ = ui_tx.send(UiEvent::Log(format!("{scores:?}")));
 
             state.last_melody = new_melody;
             *melody_ui.lock().unwrap() = Some(state.last_melody.clone());
