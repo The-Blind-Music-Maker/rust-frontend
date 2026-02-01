@@ -14,7 +14,7 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
 
-use crate::midievol::{self, ModFuncParamType};
+use crate::midievol::{self, Melody, ModFuncParamType, Score, ScoreInfo, Voices};
 
 pub enum TUIEvent {
     Reset,
@@ -46,7 +46,7 @@ fn pitch_to_note(pitch: u32) -> &'static str {
     NOTES[midi % 12]
 }
 
-fn melody_summary(m: &midievol::Melody, max_notes: usize) -> String {
+fn melody_summary(m: &midievol::Melody, max_notes: usize, cfg: Arc<Mutex<midievol::MidievolConfig>>) -> String {
     let n = m.notes.len();
     let mut parts: Vec<String> = Vec::new();
 
@@ -60,9 +60,12 @@ fn melody_summary(m: &midievol::Melody, max_notes: usize) -> String {
     // 600 ticks = 1 quarter note, round
     let len_q = (len_ticks + 600 - 1) / 600;
 
+    let notes_per_voice = get_num_notes_per_voice(m, cfg.lock().unwrap().voices.clone());
+
     // Basic stats
     parts.push(format!("score={:.3}", m.score));
     parts.push(format!("notes={}", n));
+    parts.push(format!("notes_per_voice={:?}", notes_per_voice));
 
     parts.push(format!("len_q={}", len_q));
 
@@ -241,6 +244,24 @@ impl App {
     }
 }
 
+fn get_num_notes_per_voice(m: &Melody, voices: Voices) -> (usize, usize, usize) {
+    let mut low_events: usize = 0;
+    let mut mid_events: usize = 0;
+    let mut high_events: usize = 0;
+
+    for n in &m.notes {
+        if n.pitch < (voices.min as u32 * 10) {
+            low_events += 1;
+        } else if n.pitch < (voices.max as u32 * 10) {
+            mid_events += 1;
+        } else {
+            high_events += 1;
+        }
+    }
+
+    (low_events, mid_events, high_events)
+}
+
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -297,6 +318,16 @@ fn draw_input_modal(f: &mut Frame, modal: &InputModal) {
     f.set_cursor_position((cursor_x - 1, cursor_y));
 }
 
+fn extract_info(info: Vec<ScoreInfo>) -> String {
+    if info.len() > 0 {
+        let name = &info[0].name;
+        let value = &info[0].value;
+        return format!("{name}: {value}");
+    }
+
+    return "".into();
+}
+
 fn draw_ui(f: &mut Frame, app: &App) {
     let outer = Layout::default()
         .direction(Direction::Vertical)
@@ -315,6 +346,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
         Cell::from("ModFunc"),
         Cell::from("Weight"),
         Cell::from("Score"),
+        Cell::from("Info"),
         Cell::from("Params"),
     ])
     .style(Style::default().add_modifier(Modifier::BOLD));
@@ -328,7 +360,10 @@ fn draw_ui(f: &mut Frame, app: &App) {
         }
     };
 
-    let rows = cfg.modfuncs.iter().enumerate().map(|(idx, mf)| {
+    let mut info_len = 2;
+    let mut rows = Vec::new();
+    
+    for (idx, mf) in cfg.modfuncs.iter().enumerate() {
         let params = if mf.params.is_empty() {
             "-".to_string()
         } else {
@@ -336,37 +371,32 @@ fn draw_ui(f: &mut Frame, app: &App) {
                 .iter()
                 .map(|p| match p.t {
                     ModFuncParamType::Note => {
-                        format!(
-                            "{}={:.3} [{},{}] {:?}",
-                            p.name, p.value, p.range[0], p.range[1], p.t
-                        )
+                        format!("{}={:.3} [{},{}] {:?}", p.name, p.value, p.range[0], p.range[1], p.t)
                     }
                     ModFuncParamType::Float => {
-                        format!(
-                            "{}={:.3} [{},{}] {:?}",
-                            p.name, p.value, p.range[0], p.range[1], p.t
-                        )
+                        format!("{}={:.3} [{},{}] {:?}", p.name, p.value, p.range[0], p.range[1], p.t)
                     }
                     ModFuncParamType::Int => {
-                        format!(
-                            "{}={:.0} [{},{}] {:?}",
-                            p.name, p.value, p.range[0], p.range[1], p.t
-                        )
+                        format!("{}={:.0} [{},{}] {:?}", p.name, p.value, p.range[0], p.range[1], p.t)
                     }
                 })
                 .collect::<Vec<_>>()
                 .join(" | ")
         };
-
-        let score = scores[idx].unwrap_or(0.0);
-
-        Row::new(vec![
+    
+        let score = scores[idx].clone().unwrap_or(Score { score: 0.0, info: vec![] });
+        let info = extract_info(score.info);
+    
+        info_len = info_len.max(info.len());
+    
+        rows.push(Row::new(vec![
             Cell::from(mf.name.clone()),
             Cell::from(format!("{:.1}", mf.weight)),
-            Cell::from(format!("{:.3}", score)),
+            Cell::from(format!("{:.3}", score.score)),
+            Cell::from(format!("{info}")),
             Cell::from(params),
-        ])
-    });
+        ]));
+    }
 
     let table = Table::new(
         rows,
@@ -374,6 +404,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
             Constraint::Length(26),
             Constraint::Length(8),
             Constraint::Length(5),
+            Constraint::Length(info_len.try_into().unwrap()),
             Constraint::Min(10),
         ],
     )
@@ -390,7 +421,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
     let melody_text = {
         let m = app.melody.lock().unwrap();
         if let Some(m) = m.as_ref() {
-            melody_summary(m, 40) // reuse your helper
+            melody_summary(m, 40, app.cfg.clone()) // reuse your helper
         } else {
             "No melody yet".to_string()
         }

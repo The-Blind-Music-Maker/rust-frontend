@@ -175,12 +175,23 @@ pub struct Note {
     pub length: u32,
     pub volume: u32,
 }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ScoreInfo {
+    pub name: String,
+    pub value: String
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Score {
+    pub score: f64,
+    pub info: Vec<ScoreInfo>
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Melody {
     pub notes: Vec<Note>,
     pub dna: String,
-    pub scores_per_func: Vec<Option<f64>>,
+    pub scores_per_func: Vec<Option<Score>>,
     pub score: f64,
     pub bpm: u8,
 }
