@@ -14,7 +14,7 @@ mod reconcile;
 mod scheduler;
 mod tui;
 
-use crate::midievol::{Melody, MidievolConfig, Score};
+use crate::midievol::{Melody, MidievolConfig};
 use crate::reconcile::ConfigReconciler;
 use crate::scheduler::{
     BASS_INSTRUMENT_CHAN, Feel, HIGH_INSTRUMENT_CHAN, LoopData, MID_INSTRUMENT_CHAN, NoteEvent,

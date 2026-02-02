@@ -4,8 +4,6 @@ use std::sync::mpsc::SyncSender;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::clamp_velocity;
-
 const MIDI_CLOCK: u8 = 0xF8;
 
 pub const BASS_INSTRUMENT_CHAN: u8 = 0;
