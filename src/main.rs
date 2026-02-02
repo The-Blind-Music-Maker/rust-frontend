@@ -18,7 +18,7 @@ use crate::midievol::{Melody, MidievolConfig};
 use crate::reconcile::ConfigReconciler;
 use crate::scheduler::{
     BASS_INSTRUMENT_CHAN, Feel, HIGH_INSTRUMENT_CHAN, LoopData, MID_INSTRUMENT_CHAN, NoteEvent,
-    Scheduler, TrackData, send_realtime,
+    Scheduler, TrackData, float_to_cc, send_realtime,
 };
 use crate::tui::{TUIEvent, UiEvent, pitch_x10_to_midi, run_tui};
 
@@ -167,11 +167,11 @@ fn melody_to_loop_data(
     }
 
     low_events.sort_by_key(|e| e.start_tick);
-    let low_median_cc = { median_length_to_cc(&low_events, 75, 2400).unwrap_or(0) };
+    let low_median_cc = median_length_to_cc(&low_events, 75, 2400).unwrap_or(0);
     mid_events.sort_by_key(|e| e.start_tick);
-    let mid_median_cc = { median_length_to_cc(&mid_events, 75, 2400).unwrap_or(0) };
+    let mid_median_cc = median_length_to_cc(&mid_events, 75, 2400).unwrap_or(0);
     high_events.sort_by_key(|e| e.start_tick);
-    let high_median_cc = { median_length_to_cc(&high_events, 75, 2400).unwrap_or(0) };
+    let high_median_cc = median_length_to_cc(&high_events, 75, 2400).unwrap_or(0);
 
     let mut all = Vec::with_capacity(m.notes.len());
     all.extend_from_slice(&low_events);
@@ -179,13 +179,18 @@ fn melody_to_loop_data(
     all.extend_from_slice(&high_events);
     all.sort_by_key(|e| e.start_tick);
 
-    let all_median = { median_length_to_cc(&all, 75, 2400).unwrap_or(0) };
+    let all_median = median_length_to_cc(&all, 75, 2400).unwrap_or(0);
 
     // calc avg density
     let len_in_q_notes: u32 =
         ((m.notes.last().unwrap().position + m.notes.last().unwrap().length) + 600 - 1)
             / TryInto::<u32>::try_into(tpq).unwrap();
-    let avg_notes_per_q: u32 = (m.notes.len() as u32) / len_in_q_notes;
+    let avg_notes_per_q = float_to_cc(
+        (m.notes.len() as f64) / len_in_q_notes as f64,
+        0.025,
+        4.0,
+        0.5,
+    );
 
     // Compute loop length from all events (across all buckets)
     let raw_end = low_events
@@ -244,7 +249,7 @@ fn melody_to_loop_data(
         loop_len_ticks,
         tracks,
         voice_mediants: [low_median_cc, mid_median_cc, high_median_cc, all_median],
-        avg_notes_per_q: avg_notes_per_q.try_into().unwrap_or(1),
+        avg_notes_per_q: avg_notes_per_q.unwrap_or(0),
         feel_score,
         feel,
     };

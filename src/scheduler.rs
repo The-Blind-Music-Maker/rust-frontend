@@ -22,6 +22,18 @@ fn tick_period_from_bpm(tpq: u64, bpm: f64) -> Duration {
     Duration::from_nanos(nanos)
 }
 
+// gamma = 0.5 → gentle
+// gamma = 0.35 → strong mid focus
+// gamma = 1.0 → linear (current behavior)
+pub fn float_to_cc(notes_per_q: f64, min_val: f64, max_val: f64, gamma: f64) -> Option<u8> {
+    let clamped = notes_per_q.clamp(min_val, max_val);
+
+    let linear = (clamped - min_val) / (max_val - min_val);
+    let curved = linear.powf(gamma); // gamma < 1 = expand middle
+
+    Some((curved * 127.0).round() as u8)
+}
+
 // ======================= MIDI helpers =======================
 
 pub fn send_realtime(conn_out: &mut midir::MidiOutputConnection, status: u8) {
@@ -311,6 +323,12 @@ impl Scheduler {
                         send_cc(conn_out, 4, 10, mediants[3]);
                         send_cc(conn_out, 4, 11, avg_notes_per_q);
                         send_cc(conn_out, 4, 12, feel);
+                        send_cc(
+                            conn_out,
+                            4,
+                            14,
+                            float_to_cc(self.bpm.into(), 40., 220.0, 0.9).unwrap(),
+                        );
                         send_cc(conn_out, 4, 14, feel_score);
 
                         // NOTE: MIDI clock stream stays in heap (independent), so we don't clear it here.
