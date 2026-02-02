@@ -327,7 +327,7 @@ impl Scheduler {
                             conn_out,
                             4,
                             14,
-                            float_to_cc(self.bpm.into(), 40., 220.0, 0.9).unwrap(),
+                            float_to_cc(self.bpm.into(), 40., 200.0, 0.9).unwrap(),
                         );
                         send_cc(conn_out, 4, 14, feel_score);
 
