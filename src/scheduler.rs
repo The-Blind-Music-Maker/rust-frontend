@@ -4,6 +4,8 @@ use std::sync::mpsc::SyncSender;
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::clamp_velocity;
+
 const MIDI_CLOCK: u8 = 0xF8;
 
 pub const BASS_INSTRUMENT_CHAN: u8 = 0;
@@ -53,10 +55,21 @@ pub fn all_notes_off(conn_out: &mut midir::MidiOutputConnection) {
 }
 
 #[derive(Clone, Debug)]
+pub enum Feel {
+    Unknown,
+    Eight,
+    Sixteenth,
+    EightTriplet,
+}
+
+#[derive(Clone, Debug)]
 pub struct LoopData {
     pub loop_len_ticks: u64,
     pub tracks: Vec<TrackData>,
-    pub voice_mediants: [u8; 3],
+    pub voice_mediants: [u8; 4],
+    pub avg_notes_per_q: u8,
+    pub feel: Feel,
+    pub feel_score: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -271,6 +284,18 @@ impl Scheduler {
                     if let Some(new_loop) = pending.take() {
                         all_notes_off(conn_out);
                         let mediants = &new_loop.voice_mediants.clone();
+                        let avg_notes_per_q = new_loop.avg_notes_per_q.clone();
+                        let feel: u8 = match new_loop.feel.clone() {
+                            Feel::Unknown => 0,
+                            Feel::Eight => 1,
+                            Feel::Sixteenth => 2,
+                            Feel::EightTriplet => 3,
+                        };
+                        let feel_score: u8 = ((127 as f64) * new_loop.feel_score.clone())
+                            .round()
+                            .clamp(u8::MIN as f64, u8::MAX as f64)
+                            as u8;
+
                         self.current = new_loop;
                         self.rebuild_heap_at_boundary(ev.abs_tick);
 
@@ -278,6 +303,17 @@ impl Scheduler {
                         send_cc(conn_out, BASS_INSTRUMENT_CHAN, 10, mediants[0]);
                         send_cc(conn_out, MID_INSTRUMENT_CHAN, 10, mediants[1]);
                         send_cc(conn_out, HIGH_INSTRUMENT_CHAN, 10, mediants[2]);
+
+                        // CH5 CC10 Median note length (Zelfde als van de losse partijen maar dan gemiddeld)
+                        // CH5 CC11 Gemiddelde Dichtheid over hele stuk(miss van 0-127 op 0 tot 8 noten per kwart of iets dergelijks)
+                        // CH5 CC12 8e vs 16e vs triolen (had zelf iets van 0 16e, 64 triolen en 127 8e, volgorde maakt verder niet uit)
+                        // CH5 CC13 algehele BPM (miss 40 BPM tot 200 BPM schalen op 0-127 of iets dergelijks)
+                        // CH5 CC14 Soort waarde voor gridness in het algemeen (dus op de grid of niet) Scaling maakt voor mij eigenlijk niet zo veel uit, maar miss 0 precies op de grid en dan 127 als het super wonky is. Dan kan ik miss ook de ritmische elementen op die momenten wat van de grid afhalen zodat het niet constant strak is zeg maar
+
+                        send_cc(conn_out, 4, 10, mediants[3]);
+                        send_cc(conn_out, 4, 11, avg_notes_per_q);
+                        send_cc(conn_out, 4, 12, feel);
+                        send_cc(conn_out, 4, 14, feel_score);
 
                         // NOTE: MIDI clock stream stays in heap (independent), so we don't clear it here.
                         // rebuild_heap_at_boundary() only rebuilds note/boundary events; it does not touch MidiClock.

@@ -14,16 +14,18 @@ mod reconcile;
 mod scheduler;
 mod tui;
 
-use crate::midievol::{Melody, MidievolConfig};
+use crate::midievol::{Melody, MidievolConfig, Score};
 use crate::reconcile::ConfigReconciler;
 use crate::scheduler::{
-    BASS_INSTRUMENT_CHAN, HIGH_INSTRUMENT_CHAN, LoopData, MID_INSTRUMENT_CHAN, NoteEvent,
+    BASS_INSTRUMENT_CHAN, Feel, HIGH_INSTRUMENT_CHAN, LoopData, MID_INSTRUMENT_CHAN, NoteEvent,
     Scheduler, TrackData, send_realtime,
 };
 use crate::tui::{TUIEvent, UiEvent, pitch_x10_to_midi, run_tui};
 
 const MIDI_START: u8 = 0xFA;
 const MIDI_STOP: u8 = 0xFC;
+
+const FEEL_FUNC_IDX: usize = 6;
 
 #[derive(Clone, Copy, Debug)]
 struct MidiCc {
@@ -119,10 +121,17 @@ fn median_length_to_cc(events: &[NoteEvent], min_ticks: u64, max_ticks: u64) -> 
     Some((normalized * 127.0).round() as u8)
 }
 
+fn apply_optimum(score: f64, optimum: f64) -> f64 {
+    let s = score.clamp(0.0, 1.0);
+    let o = optimum.clamp(0.0, 1.0);
+
+    s * (2.0 * o - 1.0) + (1.0 - o)
+}
+
 fn melody_to_loop_data(
     m: &midievol::Melody,
     tpq: u64,
-    voices: &midievol::Voices,
+    cgf: &midievol::MidievolConfig,
     // These are 0-based MIDI channels: 0=ch1, 1=ch2, 2=ch3
     ch_low: u8,
     ch_mid: u8,
@@ -142,11 +151,12 @@ fn melody_to_loop_data(
     let mut mid_events: Vec<NoteEvent> = Vec::new();
     let mut high_events: Vec<NoteEvent> = Vec::new();
 
+    let voices = &cgf.voices;
+
     for n in &m.notes {
         let midi_note = pitch_x10_to_midi(n.pitch);
 
         let ev = NoteEvent::note(n.position as u64, midi_note, (n.length as u64).max(1));
-
         if n.pitch < (voices.min as u32 * 10) {
             low_events.push(ev);
         } else if n.pitch < (voices.max as u32 * 10) {
@@ -162,6 +172,20 @@ fn melody_to_loop_data(
     let mid_median_cc = { median_length_to_cc(&mid_events, 75, 2400).unwrap_or(0) };
     high_events.sort_by_key(|e| e.start_tick);
     let high_median_cc = { median_length_to_cc(&high_events, 75, 2400).unwrap_or(0) };
+
+    let mut all = Vec::with_capacity(m.notes.len());
+    all.extend_from_slice(&low_events);
+    all.extend_from_slice(&mid_events);
+    all.extend_from_slice(&high_events);
+    all.sort_by_key(|e| e.start_tick);
+
+    let all_median = { median_length_to_cc(&all, 75, 2400).unwrap_or(0) };
+
+    // calc avg density
+    let len_in_q_notes: u32 =
+        ((m.notes.last().unwrap().position + m.notes.last().unwrap().length) + 600 - 1)
+            / TryInto::<u32>::try_into(tpq).unwrap();
+    let avg_notes_per_q: u32 = (m.notes.len() as u32) / len_in_q_notes;
 
     // Compute loop length from all events (across all buckets)
     let raw_end = low_events
@@ -202,10 +226,27 @@ fn melody_to_loop_data(
         });
     }
 
+    let (feel, feel_score) = if let Some(score) = m.scores_per_func[FEEL_FUNC_IDX].clone() {
+        (
+            match score.info[0].value.as_ref() {
+                "8" => Feel::Eight,
+                "16" => Feel::Sixteenth,
+                "8t" => Feel::EightTriplet,
+                _ => Feel::Unknown,
+            },
+            apply_optimum(score.score, cgf.modfuncs[FEEL_FUNC_IDX].params[0].value),
+        )
+    } else {
+        (Feel::Unknown, 0.0)
+    };
+
     let mut loop_data = LoopData {
         loop_len_ticks,
         tracks,
-        voice_mediants: [low_median_cc, mid_median_cc, high_median_cc],
+        voice_mediants: [low_median_cc, mid_median_cc, high_median_cc, all_median],
+        avg_notes_per_q: avg_notes_per_q.try_into().unwrap_or(1),
+        feel_score,
+        feel,
     };
 
     // Add metronome track (unchanged)
@@ -302,10 +343,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     }
 
     let loop_data = melody_to_loop_data(
-        &initial,
-        600,
-        &cfg.voices,
-        0, // channel 1
+        &initial, 600, &cfg, 0, // channel 1
         1, // channel 2
         2, // channel 3
         64,
@@ -498,7 +536,7 @@ fn producer(
             let loop_data = melody_to_loop_data(
                 &state.last_melody,
                 tpq,
-                &state.reconciler.active.voices,
+                &state.reconciler.active,
                 BASS_INSTRUMENT_CHAN,
                 MID_INSTRUMENT_CHAN,
                 HIGH_INSTRUMENT_CHAN,
