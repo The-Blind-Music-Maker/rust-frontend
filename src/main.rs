@@ -450,6 +450,11 @@ fn producer(
                 }
                 TUIEvent::SetChildren(children) => state.reconciler.target.children = children,
                 TUIEvent::SetXGens(x_gens) => state.reconciler.target.x_gens = x_gens,
+                TUIEvent::LoadConfig(new_config) => {
+                    state.reconciler.target = new_config.clone();
+                    state.reconciler.active = new_config;
+                    *cfg_ui.lock().unwrap() = state.reconciler.target.clone();
+                }
                 _ => {}
             }
         }

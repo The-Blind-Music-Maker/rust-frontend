@@ -1,5 +1,7 @@
 use std::{
     error::Error,
+    fs,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex, mpsc},
     time::{Duration, Instant},
 };
@@ -14,7 +16,7 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
 
-use crate::midievol::{self, Melody, ModFuncParamType, Score, ScoreInfo, Voices};
+use crate::midievol::{self, Melody, MidievolConfig, ModFuncParamType, Score, ScoreInfo, Voices};
 
 pub enum TUIEvent {
     Reset,
@@ -23,6 +25,7 @@ pub enum TUIEvent {
     SetXGens(u32),
     SendStart,
     SendStop,
+    LoadConfig(MidievolConfig),
 }
 
 const BPM_UP_KEY: &str = "↑";
@@ -124,6 +127,131 @@ pub enum UiEvent {
     // Tick,
 }
 
+#[derive(Clone, Debug)]
+pub struct SelectModal {
+    pub open: bool,
+    pub title: String,
+    pub help: String,
+    pub items: Vec<String>,
+    pub selected: usize,
+    pub error: Option<String>,
+}
+
+impl SelectModal {
+    pub fn closed() -> Self {
+        Self {
+            open: false,
+            title: String::new(),
+            help: String::new(),
+            items: vec![],
+            selected: 0,
+            error: None,
+        }
+    }
+
+    pub fn open_with(
+        &mut self,
+        title: impl Into<String>,
+        help: impl Into<String>,
+        items: Vec<String>,
+    ) {
+        self.open = true;
+        self.title = title.into();
+        self.help = help.into();
+        self.items = items;
+        self.selected = 0;
+        self.error = None;
+    }
+
+    pub fn close(&mut self) {
+        self.open = false;
+        self.items.clear();
+        self.selected = 0;
+        self.error = None;
+    }
+}
+
+enum SelectOutcome {
+    NotOpen,
+    Consumed,
+    Submit(String),
+    Cancel,
+}
+
+fn handle_select_key(modal: &mut SelectModal, code: KeyCode) -> SelectOutcome {
+    if !modal.open {
+        return SelectOutcome::NotOpen;
+    }
+
+    match code {
+        KeyCode::Esc => {
+            modal.close();
+            SelectOutcome::Cancel
+        }
+        KeyCode::Enter => {
+            if modal.items.is_empty() {
+                modal.error = Some("No configs found in ./config".to_string());
+                return SelectOutcome::Consumed;
+            }
+            let item = modal.items[modal.selected].clone();
+            SelectOutcome::Submit(item)
+        }
+        KeyCode::Up => {
+            if !modal.items.is_empty() {
+                modal.selected = modal.selected.saturating_sub(1);
+            }
+            SelectOutcome::Consumed
+        }
+        KeyCode::Down => {
+            if !modal.items.is_empty() {
+                modal.selected = (modal.selected + 1).min(modal.items.len().saturating_sub(1));
+            }
+            SelectOutcome::Consumed
+        }
+        KeyCode::Home => {
+            modal.selected = 0;
+            SelectOutcome::Consumed
+        }
+        KeyCode::End => {
+            if !modal.items.is_empty() {
+                modal.selected = modal.items.len() - 1;
+            }
+            SelectOutcome::Consumed
+        }
+        _ => SelectOutcome::Consumed,
+    }
+}
+
+fn list_config_files() -> Vec<String> {
+    let mut out = Vec::new();
+
+    if let Ok(rd) = std::fs::read_dir("./config") {
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
+            if name.ends_with(".yaml") || name.ends_with(".yml") {
+                out.push(name.to_string());
+            }
+        }
+    }
+
+    out.sort();
+    out
+}
+
+fn load_config_yaml(
+    path: &std::path::Path,
+) -> Result<midievol::MidievolConfig, Box<dyn std::error::Error>> {
+    let bytes = std::fs::read(path)?;
+    let cfg: midievol::MidievolConfig = serde_yaml::from_slice(&bytes)?;
+    Ok(cfg)
+}
+
 enum ModalOutcome {
     NotOpen,
     Consumed,
@@ -143,23 +271,141 @@ fn handle_modal_key(modal: &mut InputModal, code: KeyCode) -> ModalOutcome {
         }
         KeyCode::Enter => {
             let s = modal.input.trim().to_string();
-            // keep modal open for now; caller decides to close on success
             ModalOutcome::Submit(s)
         }
+
+        // Cursor movement
+        KeyCode::Left => {
+            if modal.cursor > 0 {
+                // move left one char (unicode-safe)
+                let prev = modal.input[..modal.cursor]
+                    .char_indices()
+                    .last()
+                    .map(|(i, _)| i)
+                    .unwrap_or(0);
+                modal.cursor = prev;
+            }
+            ModalOutcome::Consumed
+        }
+        KeyCode::Right => {
+            if modal.cursor < modal.input.len() {
+                // move right one char (unicode-safe)
+                let next = modal.input[modal.cursor..]
+                    .char_indices()
+                    .nth(1)
+                    .map(|(i, _)| modal.cursor + i)
+                    .unwrap_or(modal.input.len());
+                modal.cursor = next;
+            }
+            ModalOutcome::Consumed
+        }
+        KeyCode::Home => {
+            modal.cursor = 0;
+            ModalOutcome::Consumed
+        }
+        KeyCode::End => {
+            modal.cursor = modal.input.len();
+            ModalOutcome::Consumed
+        }
+
+        // Editing
         KeyCode::Backspace => {
-            modal.input.pop();
+            backspace_at_cursor(modal);
             modal.error = None;
             ModalOutcome::Consumed
         }
+        KeyCode::Delete => {
+            delete_at_cursor(modal);
+            modal.error = None;
+            ModalOutcome::Consumed
+        }
+
+        // Insert at cursor
         KeyCode::Char(c) => {
             if !c.is_control() {
-                modal.input.push(c);
+                insert_char_at(modal, c);
                 modal.error = None;
             }
             ModalOutcome::Consumed
         }
+
         _ => ModalOutcome::Consumed,
     }
+}
+
+fn next_free_config_filename(config_dir: &Path) -> String {
+    // We pick the lowest free x in config-x.yaml among existing files.
+    // If ./config doesn't exist, default to config-1.yaml.
+    let mut used: std::collections::HashSet<u32> = std::collections::HashSet::new();
+
+    if let Ok(rd) = fs::read_dir(config_dir) {
+        for entry in rd.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
+                continue;
+            };
+
+            // Match "config-<n>.yaml"
+            if let Some(rest) = name.strip_prefix("config-") {
+                if let Some(num_part) = rest.strip_suffix(".yaml") {
+                    if let Ok(n) = num_part.parse::<u32>() {
+                        used.insert(n);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut x: u32 = 1;
+    while used.contains(&x) {
+        x += 1;
+    }
+
+    format!("config-{}.yaml", x)
+}
+
+fn sanitize_filename(input: &str) -> Option<String> {
+    let s = input.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    // Disallow path separators to keep saves inside ./config
+    if s.contains('/') || s.contains('\\') {
+        return None;
+    }
+
+    // Optionally enforce .yaml suffix; you can relax this if you want.
+    let s = if s.ends_with(".yaml") {
+        s.to_string()
+    } else {
+        format!("{s}.yaml")
+    };
+
+    Some(s)
+}
+
+fn save_config_yaml(
+    config_dir: &Path,
+    filename: &str,
+    cfg: &midievol::MidievolConfig,
+) -> Result<PathBuf, Box<dyn Error>> {
+    fs::create_dir_all(config_dir)?;
+
+    let path = config_dir.join(filename);
+
+    if path.exists() {
+        return Err(format!("File already exists: {}", path.display()).into());
+    }
+
+    // Requires MidievolConfig: serde::Serialize
+    let yaml = serde_yaml::to_string(cfg)?;
+    fs::write(&path, yaml)?;
+
+    Ok(path)
 }
 
 #[derive(Clone, Debug)]
@@ -168,6 +414,7 @@ pub enum ModalKind {
     SetBpm,
     SetChildren,
     SetXGens,
+    SaveConfig,
     // Add more:
     // SetWeight { modfunc_index: usize },
     // SetParam { modfunc_index: usize, param_index: usize },
@@ -180,6 +427,7 @@ pub struct InputModal {
     pub title: String,
     pub help: String,
     pub input: String,
+    pub cursor: usize, // NEW
     pub error: Option<String>,
 }
 
@@ -191,6 +439,7 @@ impl InputModal {
             title: String::new(),
             help: String::new(),
             input: String::new(),
+            cursor: 0, // NEW
             error: None,
         }
     }
@@ -207,14 +456,56 @@ impl InputModal {
         self.title = title.into();
         self.help = help.into();
         self.input = initial.into();
+        self.cursor = self.input.len(); // NEW
         self.error = None;
     }
 
     pub fn close(&mut self) {
         self.open = false;
         self.input.clear();
+        self.cursor = 0; // NEW
         self.error = None;
     }
+}
+
+fn clamp_cursor(modal: &mut InputModal) {
+    modal.cursor = modal.cursor.min(modal.input.len());
+}
+
+fn insert_char_at(modal: &mut InputModal, c: char) {
+    clamp_cursor(modal);
+    modal.input.insert(modal.cursor, c);
+    modal.cursor += c.len_utf8().min(1); // for ASCII-like typing; ok for most use
+    // If you want full unicode correctness, see note below.
+}
+
+fn backspace_at_cursor(modal: &mut InputModal) {
+    clamp_cursor(modal);
+    if modal.cursor == 0 {
+        return;
+    }
+    // Remove the char before cursor (unicode-safe)
+    let prev_char_start = modal.input[..modal.cursor]
+        .char_indices()
+        .last()
+        .map(|(i, _)| i)
+        .unwrap_or(0);
+    modal.input.drain(prev_char_start..modal.cursor);
+    modal.cursor = prev_char_start;
+}
+
+fn delete_at_cursor(modal: &mut InputModal) {
+    clamp_cursor(modal);
+    if modal.cursor >= modal.input.len() {
+        return;
+    }
+    // Remove the char at cursor (unicode-safe)
+    let next = modal.input[modal.cursor..]
+        .char_indices()
+        .nth(1)
+        .map(|(i, _)| modal.cursor + i)
+        .unwrap_or(modal.input.len());
+    modal.input.drain(modal.cursor..next);
 }
 
 pub struct App {
@@ -222,6 +513,7 @@ pub struct App {
     melody: Arc<Mutex<Option<midievol::Melody>>>,
     logs: std::collections::VecDeque<String>,
     modal: InputModal,
+    select_modal: SelectModal, // NEW
     in_flight: bool,
 }
 
@@ -236,6 +528,7 @@ impl App {
             logs: std::collections::VecDeque::with_capacity(500),
             in_flight: false,
             modal: InputModal::closed(),
+            select_modal: SelectModal::closed(), // NEW
         }
     }
 
@@ -352,9 +645,60 @@ fn draw_input_modal(f: &mut Frame, modal: &InputModal) {
     f.render_widget(p, area);
 
     // cursor after "> "
-    let cursor_x = area.x + 2 + 2 + modal.input.len() as u16;
+    let cursor_x = area.x + 2 + 2 + modal.cursor as u16;
     let cursor_y = area.y + 1 + 3;
     f.set_cursor_position((cursor_x - 1, cursor_y));
+}
+
+fn draw_select_modal(f: &mut Frame, modal: &SelectModal) {
+    if !modal.open {
+        return;
+    }
+
+    let area = centered_rect(60, 45, f.area());
+    f.render_widget(Clear, area);
+
+    let mut lines: Vec<Line<'static>> = vec![
+        Line::from(modal.help.clone()),
+        Line::from("Esc cancels • Enter loads • ↑/↓ select • Home/End"),
+        Line::from(""),
+    ];
+
+    if modal.items.is_empty() {
+        lines.push(Line::from("(no .yaml files found in ./config)".to_string()));
+    } else {
+        // Show up to N items that fit, with a simple window around selected
+        let max_visible = (area.height as usize).saturating_sub(6).max(3);
+        let sel = modal.selected;
+
+        let start = sel.saturating_sub(max_visible / 2);
+        let end = (start + max_visible).min(modal.items.len());
+        let start = end.saturating_sub(max_visible).min(start);
+
+        for (i, item) in modal.items[start..end].iter().enumerate() {
+            let idx = start + i;
+            if idx == sel {
+                lines.push(Line::from(format!("> {item}")));
+            } else {
+                lines.push(Line::from(format!("  {item}")));
+            }
+        }
+    }
+
+    if let Some(err) = &modal.error {
+        lines.push(Line::from(""));
+        lines.push(Line::from(err.clone()));
+    }
+
+    let p = Paragraph::new(Text::from(lines))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(modal.title.clone()),
+        )
+        .wrap(Wrap { trim: false });
+
+    f.render_widget(p, area);
 }
 
 fn extract_info(info: Vec<ScoreInfo>) -> String {
@@ -517,7 +861,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     // --- Status bar ---
     let status = Paragraph::new(format!(
-        "(q)uit | (r)eset | send (p)lay signal | send (s)top signal | {}{} or (b)pm: {:3.0} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
+        "(q)uit | (r)eset | (w)rite config | (l)oad config | send (p)lay signal | send (s)top signal | {}{} or (b)pm: {:3.0} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
         BPM_DOWN_KEY,
         BPM_UP_KEY,
         cfg.bpm,
@@ -529,6 +873,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
     f.render_widget(status, outer[3]);
 
     draw_input_modal(f, &app.modal);
+    draw_select_modal(f, &app.select_modal);
 }
 
 pub fn run_tui(
@@ -624,6 +969,36 @@ pub fn run_tui(
                                 ModalKind::None => {
                                     app.modal.close();
                                 } // add more modal kinds here later
+                                ModalKind::SaveConfig => {
+                                    let Some(fname) = sanitize_filename(&txt) else {
+                                        app.modal.error = Some(
+                                            "Invalid filename (no slashes; not empty).".to_string(),
+                                        );
+                                        // keep modal open
+                                        continue;
+                                    };
+
+                                    // Snapshot current cfg
+                                    let cfg_snapshot = cfg.lock().unwrap().clone();
+
+                                    match save_config_yaml(
+                                        Path::new("./config"),
+                                        &fname,
+                                        &cfg_snapshot,
+                                    ) {
+                                        Ok(path) => {
+                                            app.push_log(format!(
+                                                "[ui] saved config to {}",
+                                                path.display()
+                                            ));
+                                            app.modal.close();
+                                        }
+                                        Err(e) => {
+                                            app.modal.error = Some(format!("{e}"));
+                                            // keep modal open
+                                        }
+                                    }
+                                }
                             }
                         }
                         ModalOutcome::Cancel | ModalOutcome::Consumed => { /* nothing else */ }
@@ -632,6 +1007,35 @@ pub fn run_tui(
 
                     // IMPORTANT: don't let modal keys fall through to normal UI
                     continue;
+                }
+
+                // If select modal is open, it consumes input first
+                if app.select_modal.open {
+                    let outcome = handle_select_key(&mut app.select_modal, k.code);
+
+                    match outcome {
+                        SelectOutcome::Submit(filename) => {
+                            let path = std::path::Path::new("./config").join(&filename);
+
+                            match load_config_yaml(&path) {
+                                Ok(new_cfg) => {
+                                    let _ = tui_events_tx.send(TUIEvent::LoadConfig(new_cfg));
+                                    app.push_log(format!("[ui] loaded config: {}", path.display()));
+                                    app.select_modal.close();
+                                }
+                                Err(e) => {
+                                    // Keep the modal open and show error
+                                    app.select_modal.error =
+                                        Some(format!("Failed to load {}: {e}", path.display()));
+                                }
+                            }
+                        }
+
+                        SelectOutcome::Cancel | SelectOutcome::Consumed => {}
+                        SelectOutcome::NotOpen => {}
+                    }
+
+                    continue; // don't fall through
                 }
 
                 // 2) Normal keys (open modal etc)
@@ -701,6 +1105,29 @@ pub fn run_tui(
                         cfg.bpm
                     };
                     let _ = tui_scheduler_tx.send(TUIEvent::NewBPM(new_bpm));
+                }
+
+                if k.code == KeyCode::Char('w') {
+                    let config_dir = Path::new("./config");
+                    let default_name = next_free_config_filename(config_dir);
+
+                    app.modal.open_with(
+                        ModalKind::SaveConfig,
+                        "Save Config",
+                        "Type a filename (saved into ./config).",
+                        default_name,
+                    );
+                    continue;
+                }
+
+                if k.code == KeyCode::Char('l') {
+                    let items = list_config_files();
+                    app.select_modal.open_with(
+                        "Load Config",
+                        "Select a config from ./config",
+                        items,
+                    );
+                    continue;
                 }
             }
         }
