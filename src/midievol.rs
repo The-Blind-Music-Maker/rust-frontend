@@ -237,7 +237,7 @@ fn feq(a: f64, b: f64, tol: f64) -> bool {
     diff <= tol * scale
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitPayload {
     pub dna: String,
     pub voices: Voices,
@@ -267,13 +267,13 @@ pub struct Note {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ScoreInfo {
     pub name: String,
-    pub value: String
+    pub value: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Score {
     pub score: f64,
-    pub info: Vec<ScoreInfo>
+    pub info: Vec<ScoreInfo>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

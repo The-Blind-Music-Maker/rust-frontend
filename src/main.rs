@@ -6,7 +6,7 @@ use std::error::Error;
 use std::io::{Write, stdin, stdout};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
 
 mod midievol;
@@ -439,14 +439,24 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
 fn generate_new_melody(cfg: &MidievolConfig) -> Melody {
     let mut r = rand::rng();
     let dna = midievol::create_random_melody(8, &mut r);
-
     let init_payload = midievol::InitPayload {
-        dna: dna,
+        dna: dna.clone(),
         voices: cfg.voices.clone(),
         modfuncs: cfg.modfuncs.clone(),
     };
 
-    midievol::send_init_req("http://localhost:8080/init", init_payload).unwrap()
+    loop {
+        match midievol::send_init_req("http://localhost:8080/init", init_payload.clone()) {
+            Ok(melody) => return melody,
+            Err(err) => {
+                println!(
+                    "Got err when trying to init: {:?}; Try again in 5 secs",
+                    err
+                );
+                sleep(Duration::from_secs(5));
+            }
+        }
+    }
 }
 
 fn producer(
@@ -581,10 +591,14 @@ fn producer(
                     };
 
                     thread::spawn(move || {
-                        let melody =
-                            midievol::send_evolve_req("http://localhost:8080/evolve", payload)
-                                .unwrap();
-                        let _ = tx.send((my_token, melody));
+                        match midievol::send_evolve_req("http://localhost:8080/evolve", payload) {
+                            Ok(melody) => {
+                                let _ = tx.send((my_token, melody));
+                            }
+                            Err(err) => {
+                                println!("Got error back from server: {:?}", err);
+                            }
+                        }
                     });
                 }
             }
