@@ -6,7 +6,7 @@ voices:
   max: 60
 
 x_gens: 100
-children: 50
+children: 100
 
 modFuncs:
   - name: scoreMelodicMotifs
@@ -76,7 +76,7 @@ modFuncs:
     scoreRange: [-1, 1]
 
   - name: scoreSimultaneousIntervals
-    weight: 0
+    weight: 1
     weightCC: 5
     params: []
     voices: [false, true, false]
@@ -86,9 +86,20 @@ modFuncs:
     scoreRange: [-1, 1]
 
   - name: scoreMeasureForChord
-    weight: 0
+    weight: 1
     weightCC: 6
-    params: []
+    params:
+      - name: Chord categories
+        range: [0, 64]
+        value: 8
+          # 000001 = 1 = tonal_core
+          # 000010 = 2 = open_modal
+          # 000100 = 4 = rich_tertian
+          # 001000 = 8 = altered_expressive
+          # 010000 = 16 = symmetrical_tension
+          # 100000 = 32 = clusters
+        type: int
+        cc: 103
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: true
@@ -127,7 +138,7 @@ modFuncs:
     weightCC: 8
     params:
       - name: "Q Note count"
-        range: [0, 160]
+        range: [0, 127]
         value: 8
         type: int
         cc: 15
@@ -158,7 +169,7 @@ modFuncs:
     scoreRange: [-1, 1]
 
   - name: scoreGrowthDensity
-    weight: 0
+    weight: 1
     weightCC: 10
     params:
       - name: "Target density bass"
@@ -168,7 +179,7 @@ modFuncs:
         cc: 18
       - name: "Target density mid"
         range: [0, 8]
-        value: 2
+        value: 4
         type: float
         cc: 19
       - name: "Target density high"
@@ -176,6 +187,11 @@ modFuncs:
         value: 1
         type: float
         cc: 20
+      - name: "Distribute even"
+        range: [0, 1]
+        value: 1
+        type: bool
+        cc: 21
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false

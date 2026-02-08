@@ -76,6 +76,7 @@ pub enum ModFuncParamType {
     Note,
     Float,
     Int,
+    Bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

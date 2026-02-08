@@ -731,7 +731,9 @@ fn map_cc_to_param_value(param: &midievol::ModFuncParam, cc_val: u8) -> f64 {
 
     match param.t {
         midievol::ModFuncParamType::Float => lerp(lo, hi, t),
-        midievol::ModFuncParamType::Int | midievol::ModFuncParamType::Note => {
+        midievol::ModFuncParamType::Int
+        | midievol::ModFuncParamType::Note
+        | midievol::ModFuncParamType::Bool => {
             // integer-ish range; keep as f64 but whole-number
             lerp(lo, hi, t).round()
         }

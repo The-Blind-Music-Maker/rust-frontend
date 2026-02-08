@@ -771,6 +771,14 @@ fn draw_ui(f: &mut Frame, app: &App) {
                             p.name, p.value, p.range[0], p.range[1], p.t
                         )
                     }
+                    ModFuncParamType::Bool => {
+                        let value = match f64::floor(p.value) as i64 {
+                            0 => false,
+                            _ => true,
+                        };
+
+                        format!("{}={} [{},{}] {:?}", p.name, value, "true", "false", p.t)
+                    }
                 })
                 .collect::<Vec<_>>()
                 .join(" | ")
