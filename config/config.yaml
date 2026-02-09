@@ -86,7 +86,7 @@ modFuncs:
     scoreRange: [-1, 1]
 
   - name: scoreMeasureForChord
-    weight: 1
+    weight: 0
     weightCC: 6
     params:
       - name: Chord categories
@@ -134,7 +134,7 @@ modFuncs:
     scoreRange: [-1, 1]
 
   - name: scoreNoteCount
-    weight: 0
+    weight: 1
     weightCC: 8
     params:
       - name: "Q Note count"
@@ -187,13 +187,23 @@ modFuncs:
         value: 1
         type: float
         cc: 20
-      - name: "Distribute even"
-        range: [0, 1]
-        value: 1
-        type: bool
-        cc: 21
     voices: [true, true, true]
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
     splitVoices: false
     scoreRange: [null, 0]
+  - name: scoreNoteDistribution
+    weight: 1
+    weightCC: 11
+    params:
+      - name: "Optimum"
+        range: [-1, 1] # -1 clustered,  1 fully even
+        value: 0.5
+        type: float
+        cc: 104
+    voices: [true, true, true]
+    normalizationFunc: none
+    hasNormalizedScore: true
+    splitVoices: false
+    scoreRange: [-1, 1]
+

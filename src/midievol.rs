@@ -82,7 +82,7 @@ pub enum ModFuncParamType {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ModFuncParam {
     pub name: String,
-    pub range: [u8; 2],
+    pub range: [i32; 2],
     pub value: f64,
 
     #[serde(rename = "type")]

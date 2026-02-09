@@ -232,15 +232,18 @@ fn melody_to_loop_data(
     }
 
     let (feel, feel_score) = if let Some(score) = m.scores_per_func[FEEL_FUNC_IDX].clone() {
-        (
-            match score.info[0].value.as_ref() {
-                "8" => Feel::Eight,
-                "16" => Feel::Sixteenth,
-                "8t" => Feel::EightTriplet,
-                _ => Feel::Unknown,
-            },
-            apply_optimum(score.score, cgf.modfuncs[FEEL_FUNC_IDX].params[0].value),
-        )
+        match score.info.len() {
+            0 => (Feel::Unknown, 0.0),
+            _ => (
+                match score.info[0].value.as_ref() {
+                    "8" => Feel::Eight,
+                    "16" => Feel::Sixteenth,
+                    "8t" => Feel::EightTriplet,
+                    _ => Feel::Unknown,
+                },
+                apply_optimum(score.score, cgf.modfuncs[FEEL_FUNC_IDX].params[0].value),
+            ),
+        }
     } else {
         (Feel::Unknown, 0.0)
     };
