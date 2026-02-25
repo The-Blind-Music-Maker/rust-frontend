@@ -14,3 +14,4 @@ reqwest = { version = "*", features = ["json", "rustls-tls", "blocking"] }
 ratatui = "0.29"
 crossterm = "0.28"
 textwrap = "0.16"
+anyhow = "*"

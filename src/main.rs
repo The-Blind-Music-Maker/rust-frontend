@@ -9,11 +9,13 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
 
+pub mod controller;
 mod midievol;
 mod reconcile;
 mod scheduler;
 mod tui;
 
+use crate::controller::Controller;
 use crate::midievol::{Melody, MidievolConfig};
 use crate::reconcile::ConfigReconciler;
 use crate::scheduler::{
@@ -288,7 +290,19 @@ fn main() {
 fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     let mut conn_out = open_midi_output()?;
 
-    let midi_in_data: Option<(MidiInput, MidiInputPort)> = match open_midi_input() {
+    let midi_in_data: Option<(MidiInput, MidiInputPort)> =
+        match open_midi_input("midir-cc-listener", "Please select input port: ") {
+            Ok(x) => Some(x),
+            Err(e) => {
+                eprintln!("MIDI input open failed: {e}");
+                None
+            }
+        };
+
+    let midi_controller_in_data: Option<(MidiInput, MidiInputPort)> = match open_midi_input(
+        "midir-controller_cc-listener",
+        "Please select controller input port: ",
+    ) {
         Ok(x) => Some(x),
         Err(e) => {
             eprintln!("MIDI input open failed: {e}");
@@ -327,11 +341,16 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     let (tui_scheduler_tx, tui_scheduler_rx) = mpsc::channel::<TUIEvent>();
     let (boundary_tx, boundary_rx) = mpsc::sync_channel::<()>(2);
     let (cc_tx, cc_rx) = mpsc::channel::<MidiCc>();
+    let (controller_cc_tx, controller_cc_rx) = mpsc::channel::<MidiCc>();
     let (ui_tx, ui_rx) = mpsc::channel::<UiEvent>();
     let (tui_tx, tui_rx) = mpsc::channel::<TUIEvent>();
 
     if let Some(data) = midi_in_data {
         let _midi_in_thread = spawn_midi_cc_listener(cc_tx, data.0, data.1);
+    }
+
+    if let Some(data) = midi_controller_in_data {
+        let _midi_in_thread = spawn_midi_cc_listener(controller_cc_tx, data.0, data.1);
     }
 
     // NEW: shared cfg snapshot for UI
@@ -379,6 +398,9 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
             reconciler,
         };
 
+        let mut controller = controller::Controller::new(vec![]);
+        controller.load_domains("./config/domains").unwrap();
+
         thread::spawn(move || {
             producer(
                 loop_tx,
@@ -389,7 +411,9 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
                 ui_tx,
                 tui_rx,
                 cfg_ui,
-                melody_ui, // NEW
+                melody_ui,
+                controller,
+                controller_cc_rx,
             );
         });
     }
@@ -441,14 +465,15 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
 
 fn generate_new_melody(cfg: &MidievolConfig) -> Melody {
     let mut r = rand::rng();
-    let dna = midievol::create_random_melody(8, &mut r);
-    let init_payload = midievol::InitPayload {
-        dna: dna.clone(),
-        voices: cfg.voices.clone(),
-        modfuncs: cfg.modfuncs.clone(),
-    };
 
     loop {
+        let dna = midievol::create_random_melody(8, &mut r);
+        let init_payload = midievol::InitPayload {
+            dna: dna.clone(),
+            voices: cfg.voices.clone(),
+            modfuncs: cfg.modfuncs.clone(),
+        };
+
         match midievol::send_init_req("http://localhost:8080/init", init_payload.clone()) {
             Ok(melody) => return melody,
             Err(err) => {
@@ -472,6 +497,8 @@ fn producer(
     tui_rx: mpsc::Receiver<TUIEvent>, // <-- FIXED
     cfg_ui: Arc<Mutex<midievol::MidievolConfig>>,
     melody_ui: Arc<Mutex<Option<midievol::Melody>>>,
+    mut controller: Controller,
+    controller_cc_rx: mpsc::Receiver<MidiCc>,
 ) {
     let (result_tx, result_rx) = mpsc::channel::<(u64, Melody)>();
     let mut in_flight = false;
@@ -530,6 +557,22 @@ fn producer(
                     val: msg.val,
                     target: target_name,
                     new_value,
+                });
+            }
+        }
+
+        while let Ok(msg) = controller_cc_rx.try_recv() {
+            if let Some(domain) = controller.update_domain(msg.cc, msg.val) {
+                controller.apply_domains(&mut state.reconciler.target);
+                // publish the target to UI immediately so the UI reflects what the user did
+                *cfg_ui.lock().unwrap() = state.reconciler.target.clone();
+
+                let _ = ui_tx.send(UiEvent::CcApplied {
+                    ch: msg.ch,
+                    cc: msg.cc,
+                    val: msg.val,
+                    target: format!("Domain: {domain}"),
+                    new_value: msg.val.to_string(),
                 });
             }
         }
@@ -647,8 +690,11 @@ fn open_midi_output() -> Result<midir::MidiOutputConnection, Box<dyn Error>> {
     Ok(conn_out)
 }
 
-fn open_midi_input() -> Result<(MidiInput, MidiInputPort), Box<dyn Error>> {
-    let mut midi_in = MidiInput::new("midir-cc-listener")?;
+fn open_midi_input(
+    client_name: &str,
+    question: &str,
+) -> Result<(MidiInput, MidiInputPort), Box<dyn Error>> {
+    let mut midi_in = MidiInput::new(client_name)?;
     midi_in.ignore(Ignore::None);
 
     let in_ports = midi_in.ports();
@@ -666,7 +712,7 @@ fn open_midi_input() -> Result<(MidiInput, MidiInputPort), Box<dyn Error>> {
             for (i, p) in in_ports.iter().enumerate() {
                 println!("{}: {}", i, midi_in.port_name(p).unwrap());
             }
-            print!("Please select input port: ");
+            print!("{question}");
             stdout().flush()?;
             let mut input = String::new();
             stdin().read_line(&mut input)?;
