@@ -472,6 +472,7 @@ fn generate_new_melody(cfg: &MidievolConfig) -> Melody {
             dna: dna.clone(),
             voices: cfg.voices.clone(),
             modfuncs: cfg.modfuncs.clone(),
+            bpm: cfg.bpm,
         };
 
         match midievol::send_init_req("http://localhost:8080/init", init_payload.clone()) {
@@ -533,6 +534,7 @@ fn producer(
                 }
                 TUIEvent::SetChildren(children) => state.reconciler.target.children = children,
                 TUIEvent::SetXGens(x_gens) => state.reconciler.target.x_gens = x_gens,
+                TUIEvent::NewBPM(bpm) => state.reconciler.target.bpm = bpm,
                 TUIEvent::LoadConfig(new_config) => {
                     state.reconciler.target = new_config.clone();
                     state.reconciler.active = new_config;
@@ -586,6 +588,7 @@ fn producer(
 
             in_flight = false;
             let _ = ui_tx.send(UiEvent::ProducerInFlight(false));
+            let new_bpm = new_melody.bpm;
 
             state.last_melody = new_melody;
 
@@ -604,6 +607,8 @@ fn producer(
                 64,
             );
 
+            state.reconciler.target.bpm = new_bpm;
+            *cfg_ui.lock().unwrap() = state.reconciler.target.clone();
             if loop_tx.send(loop_data).is_err() {
                 return;
             }
@@ -634,6 +639,7 @@ fn producer(
                         children: cfg.children,
                         voices: cfg.voices.clone(),
                         modfuncs: cfg.modfuncs.clone(),
+                        bpm: cfg.bpm,
                     };
 
                     thread::spawn(move || {

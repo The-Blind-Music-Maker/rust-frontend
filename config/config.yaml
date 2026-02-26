@@ -55,7 +55,7 @@ modFuncs:
     scoreRange: [null, 1]
 
   - name: scoreTonality
-    weight: 1
+    weight: 0
     weightCC: 4
     params:
       - name: Enabled scales
@@ -76,7 +76,7 @@ modFuncs:
     scoreRange: [-1, 1]
 
   - name: scoreSimultaneousIntervals
-    weight: 1
+    weight: 0
     weightCC: 5
     params: []
     voices: [false, true, false]
@@ -107,7 +107,7 @@ modFuncs:
     scoreRange: [-1, 1]
 
   - name: scoreGridness16th
-    weight: 1
+    weight: 0
     weightCC: 7
     params:
       - name: Optimum
@@ -169,7 +169,7 @@ modFuncs:
     scoreRange: [-1, 1]
 
   - name: scoreGrowthDensity
-    weight: 1
+    weight: 0
     weightCC: 10
     params:
       - name: "Target density bass"
@@ -193,7 +193,7 @@ modFuncs:
     splitVoices: false
     scoreRange: [null, 0]
   - name: scoreNoteDistribution
-    weight: 1
+    weight: 0
     weightCC: 11
     params:
       - name: "Optimum"
@@ -204,6 +204,20 @@ modFuncs:
     voices: [true, true, true]
     normalizationFunc: none
     hasNormalizedScore: true
+    splitVoices: false
+    scoreRange: [-1, 1]
+  - name: scoreBpm
+    weight: 2
+    weightCC: 200
+    params:
+      - name: "Optimum"
+        range: [50, 200]
+        value: 55
+        type: float
+        cc: 104
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: false
     splitVoices: false
     scoreRange: [-1, 1]
 

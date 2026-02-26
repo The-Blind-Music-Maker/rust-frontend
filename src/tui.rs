@@ -869,7 +869,7 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     // --- Status bar ---
     let status = Paragraph::new(format!(
-        "(q)uit | (r)eset | (w)rite config | (l)oad config | send (p)lay signal | send (s)top signal | {}{} or (b)pm: {:3.0} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
+        "(q)uit | (r)eset | (w)rite config | (l)oad config | send (p)lay signal | send (s)top signal | {}{} or (b)pm: {:3.2} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
         BPM_DOWN_KEY,
         BPM_UP_KEY,
         cfg.bpm,
@@ -926,6 +926,7 @@ pub fn run_tui(
                                                 cfg.bpm = bpm;
                                             }
                                             let _ = tui_scheduler_tx.send(TUIEvent::NewBPM(bpm));
+                                            let _ = tui_events_tx.send(TUIEvent::NewBPM(bpm));
                                             app.push_log(format!("[ui] bpm set to {bpm:.1}"));
                                             app.modal.close();
                                         }
@@ -1053,7 +1054,7 @@ pub fn run_tui(
                         ModalKind::SetBpm,
                         "Set BPM",
                         "Type a BPM (20..300) and press Enter.",
-                        format!("{current:.0}"),
+                        format!("{current:.2}"),
                     );
                     continue;
                 }
@@ -1100,19 +1101,21 @@ pub fn run_tui(
                 if k.code == KeyCode::Up {
                     let new_bpm = {
                         let mut cfg = cfg.lock().unwrap();
-                        cfg.bpm = (cfg.bpm + BPM_STEP).clamp(BPM_MIN, BPM_MAX);
+                        cfg.bpm = (cfg.bpm + BPM_STEP).clamp(BPM_MIN, BPM_MAX).round();
                         cfg.bpm
                     };
                     let _ = tui_scheduler_tx.send(TUIEvent::NewBPM(new_bpm));
+                    let _ = tui_events_tx.send(TUIEvent::NewBPM(new_bpm));
                 }
 
                 if k.code == KeyCode::Down {
                     let new_bpm = {
                         let mut cfg = cfg.lock().unwrap();
-                        cfg.bpm = (cfg.bpm - BPM_STEP).clamp(BPM_MIN, BPM_MAX);
+                        cfg.bpm = (cfg.bpm - BPM_STEP).clamp(BPM_MIN, BPM_MAX).round();
                         cfg.bpm
                     };
                     let _ = tui_scheduler_tx.send(TUIEvent::NewBPM(new_bpm));
+                    let _ = tui_events_tx.send(TUIEvent::NewBPM(new_bpm));
                 }
 
                 if k.code == KeyCode::Char('w') {

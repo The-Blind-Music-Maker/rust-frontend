@@ -245,6 +245,7 @@ pub struct InitPayload {
 
     #[serde(rename = "modFuncs")]
     pub modfuncs: Vec<ModFunc>,
+    pub bpm: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -256,6 +257,7 @@ pub struct EvolvePayload {
 
     #[serde(rename = "modFuncs")]
     pub modfuncs: Vec<ModFunc>,
+    pub bpm: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -283,7 +285,7 @@ pub struct Melody {
     pub dna: String,
     pub scores_per_func: Vec<Option<Score>>,
     pub score: f64,
-    pub bpm: u8,
+    pub bpm: f64,
 }
 
 pub fn send_init_req(
