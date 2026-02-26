@@ -110,6 +110,11 @@ modFuncs:
           # 100000 = 32 = clusters
         type: int
         cc: 103
+      - name: Optimum
+        range: [0, 1]
+        value: 1
+        type: float
+        cc: 113
     voices: [true, true, true]
     voicesCC: 119
     normalizationFunc: normalizeMinOneToOne
