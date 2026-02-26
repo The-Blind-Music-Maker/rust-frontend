@@ -169,7 +169,7 @@ modFuncs:
     splitVoicesCC: 36
     scoreRange: [null, 0]
 
-  - name: scoreNoteDiversity
+  - name: scoreNoteLengthDiversity
     weight: 0
     weightCC: 9
     params:
