@@ -521,7 +521,7 @@ fn producer(
     let mut in_flight = false;
     let mut token: u64 = 0;
 
-    let cc_map = build_cc_map_from_cfg(&state.reconciler.active);
+    let mut cc_map = build_cc_map_from_cfg(&state.reconciler.active);
 
     loop {
         // ---------------- TUI events (Reset) ----------------
@@ -554,6 +554,7 @@ fn producer(
                 TUIEvent::LoadConfig(new_config) => {
                     state.reconciler.target = new_config.clone();
                     state.reconciler.active = new_config;
+                    cc_map = build_cc_map_from_cfg(&state.reconciler.active);
                     *cfg_ui.lock().unwrap() = state.reconciler.target.clone();
                 }
                 _ => {}
@@ -811,10 +812,29 @@ fn map_cc_to_param_value(param: &midievol::ModFuncParam, cc_val: u8) -> f64 {
     }
 }
 
+fn cc_to_voices(cc_val: u8) -> [bool; 3] {
+    let mut voices = [false, false, false];
+    if cc_val & 0b001 > 0 || cc_val >= 8 {
+        voices[0] = true;
+    }
+
+    if cc_val & 0b010 > 0 || cc_val >= 8 {
+        voices[1] = true;
+    }
+
+    if cc_val & 0b100 > 0 || cc_val >= 8 {
+        voices[2] = true;
+    }
+
+    voices
+}
+
 #[derive(Clone, Copy, Debug)]
 enum CcTarget {
     ModWeight { mod_idx: usize },
     ModParam { mod_idx: usize, param_idx: usize },
+    ModVoices { mod_idx: usize },
+    ModSplit { mod_idx: usize },
 }
 
 fn cc_to_quantized_range(cc: u8, min: f32, max: f32, step: f32) -> f64 {
@@ -844,6 +864,19 @@ fn apply_cc_with_map_and_describe(
             let p = mf.params.get_mut(param_idx)?;
             p.value = map_cc_to_param_value(p, msg.val);
             Some((format!("{}.{}", mf.name, p.name), format!("{:.2}", p.value)))
+        }
+        CcTarget::ModVoices { mod_idx } => {
+            let mf = cfg.modfuncs.get_mut(mod_idx)?;
+            mf.voices = cc_to_voices(msg.val.clamp(0, 8));
+            Some((format!("{}.voices", mf.name), format!("{:?}", mf.voices)))
+        }
+        CcTarget::ModSplit { mod_idx } => {
+            let mf = cfg.modfuncs.get_mut(mod_idx)?;
+            mf.split_voices = msg.val > 0;
+            Some((
+                format!("{}.split_voices", mf.name),
+                format!("{}", mf.split_voices),
+            ))
         }
     }
 }
@@ -895,6 +928,34 @@ fn build_cc_map_from_cfg(cfg: &midievol::MidievolConfig) -> HashMap<CcKey, CcTar
             }
 
             map.insert(key, CcTarget::ModWeight { mod_idx: mi });
+        }
+
+        if let Some(cc) = mf.voices_cc {
+            let ch = mf.weight_channel.map(|c| c & 0x0F);
+            let key = (ch, cc);
+
+            if map.contains_key(&key) {
+                eprintln!(
+                    "WARNING: duplicate CC mapping: weight '{}' uses cc={} ch={:?}",
+                    mf.name, cc, ch
+                );
+            }
+
+            map.insert(key, CcTarget::ModVoices { mod_idx: mi });
+        }
+
+        if let Some(cc) = mf.split_voices_cc {
+            let ch = mf.weight_channel.map(|c| c & 0x0F);
+            let key = (ch, cc);
+
+            if map.contains_key(&key) {
+                eprintln!(
+                    "WARNING: duplicate CC mapping: weight '{}' uses cc={} ch={:?}",
+                    mf.name, cc, ch
+                );
+            }
+
+            map.insert(key, CcTarget::ModSplit { mod_idx: mi });
         }
 
         // ---- param CCs ----

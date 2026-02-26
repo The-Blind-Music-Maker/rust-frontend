@@ -720,6 +720,15 @@ fn extract_info(info: Vec<ScoreInfo>) -> String {
     return "".into();
 }
 
+fn render_voices(voice: [bool; 3]) -> String {
+    return format!(
+        "{} {} {}",
+        if voice[0] { "⦿" } else { "○" },
+        if voice[1] { "⦿" } else { "○" },
+        if voice[2] { "⦿" } else { "○" },
+    );
+}
+
 fn draw_ui(f: &mut Frame, app: &App) {
     let outer = Layout::default()
         .direction(Direction::Vertical)
@@ -737,6 +746,8 @@ fn draw_ui(f: &mut Frame, app: &App) {
     let header = Row::new(vec![
         Cell::from("ModFunc"),
         Cell::from("Weight"),
+        Cell::from("Split"),
+        Cell::from("Voices"),
         Cell::from("Score"),
         Cell::from("Info"),
         Cell::from("Params"),
@@ -805,6 +816,8 @@ fn draw_ui(f: &mut Frame, app: &App) {
         rows.push(Row::new(vec![
             Cell::from(mf.name.clone()),
             Cell::from(format!("{:.1}", mf.weight)),
+            Cell::from(format!("{}", mf.split_voices)),
+            Cell::from(render_voices(mf.voices)),
             Cell::from(format!("{:.3}", score.score)),
             Cell::from(format!("{info}")),
             Cell::from(params),
@@ -815,7 +828,9 @@ fn draw_ui(f: &mut Frame, app: &App) {
         rows,
         [
             Constraint::Length(26),
-            Constraint::Length(8),
+            Constraint::Length(7),
+            Constraint::Length(6),
+            Constraint::Length(7),
             Constraint::Length(5),
             Constraint::Length(info_len.try_into().unwrap()),
             Constraint::Min(10),

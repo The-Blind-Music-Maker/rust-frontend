@@ -105,6 +105,8 @@ pub struct ModFunc {
 
     #[serde(rename = "splitVoices")]
     pub split_voices: bool,
+    #[serde(rename = "splitVoicesCC", default)]
+    pub split_voices_cc: Option<u8>,
 
     #[serde(rename = "hasNormalizedScore")]
     pub has_normalized_score: bool,
@@ -113,6 +115,8 @@ pub struct ModFunc {
     pub normalization_func: String,
 
     pub voices: [bool; 3],
+    #[serde(rename = "voicesCC", default)]
+    pub voices_cc: Option<u8>,
 
     #[serde(rename = "scoreRange")]
     pub score_range: (Option<f64>, Option<f64>),

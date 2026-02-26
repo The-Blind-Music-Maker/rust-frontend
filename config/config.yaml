@@ -14,9 +14,11 @@ modFuncs:
     weightCC: 1
     params: []
     voices: [true, true, true]
+    voicesCC: 114
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
     splitVoices: false
+    splitVoicesCC: 28
     scoreRange: [0, null]
 
   - name: scoreRhythmicMotifs
@@ -24,9 +26,11 @@ modFuncs:
     weightCC: 2
     params: []
     voices: [true, true, true]
+    voicesCC: 115
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
     splitVoices: false
+    splitVoicesCC: 29
     scoreRange: [0, null]
 
   - name: scoreOverlap
@@ -49,9 +53,11 @@ modFuncs:
         type: int
         cc: 13
     voices: [true, true, true]
+    voicesCC: 116
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
     splitVoices: false
+    splitVoicesCC: 30
     scoreRange: [null, 1]
 
   - name: scoreTonality
@@ -70,9 +76,11 @@ modFuncs:
         type: int
         cc: 101
     voices: [true, true, true]
+    voicesCC: 117
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: true
     splitVoices: false
+    splitVoicesCC: 32
     scoreRange: [-1, 1]
 
   - name: scoreSimultaneousIntervals
@@ -80,9 +88,11 @@ modFuncs:
     weightCC: 5
     params: []
     voices: [false, true, false]
+    voicesCC: 118
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: true
     splitVoices: false
+    splitVoicesCC: 33
     scoreRange: [-1, 1]
 
   - name: scoreMeasureForChord
@@ -101,9 +111,11 @@ modFuncs:
         type: int
         cc: 103
     voices: [true, true, true]
+    voicesCC: 119
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: true
     splitVoices: false
+    splitVoicesCC: 34
     scoreRange: [-1, 1]
 
   - name: scoreGridness16th
@@ -128,9 +140,11 @@ modFuncs:
         type: int
         cc: 100
     voices: [true, true, true]
+    voicesCC: 120
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: true
     splitVoices: false
+    splitVoicesCC: 35
     scoreRange: [-1, 1]
 
   - name: scoreNoteCount
@@ -143,9 +157,11 @@ modFuncs:
         type: int
         cc: 15
     voices: [true, true, true]
+    voicesCC: 121
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
     splitVoices: false
+    splitVoicesCC: 36
     scoreRange: [null, 0]
 
   - name: scoreNoteDiversity
@@ -163,9 +179,11 @@ modFuncs:
         type: float
         cc: 17
     voices: [true, true, true]
+    voicesCC: 122
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: true
     splitVoices: false
+    splitVoicesCC: 37
     scoreRange: [-1, 1]
 
   - name: scoreGrowthDensity
@@ -188,9 +206,11 @@ modFuncs:
         type: float
         cc: 20
     voices: [true, true, true]
+    voicesCC: 123
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
     splitVoices: false
+    splitVoicesCC: 38
     scoreRange: [null, 0]
   - name: scoreNoteDistribution
     weight: 1
@@ -200,11 +220,13 @@ modFuncs:
         range: [-1, 1] # -1 clustered,  1 fully even
         value: 0.5
         type: float
-        cc: 104
+        cc: 21
     voices: [true, true, true]
+    voicesCC: 124
     normalizationFunc: none
     hasNormalizedScore: true
     splitVoices: false
+    splitVoicesCC: 39
     scoreRange: [-1, 1]
   - name: scoreBpm
     weight: 2
@@ -214,11 +236,13 @@ modFuncs:
         range: [50, 200]
         value: 55
         type: float
-        cc: 106
+        cc: 22
     voices: [true, true, true]
+    voicesCC: 125
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
     splitVoices: false
+    splitVoicesCC: 40
     scoreRange: [-1, 1]
   - name: scoreEnergyWaves
     weight: 5
@@ -228,29 +252,31 @@ modFuncs:
         range: [0, 10]
         value: 8
         type: float
-        cc: 108
+        cc: 23
       - name: MaxVar
         range: [0, 10]
         value: 10
         type: float
-        cc: 109
+        cc: 24
       - name: beatsPerMeasure
         range: [2, 8]
         value: 2
         type: int
-        cc: 110
+        cc: 25
       - name: stepBeats
         range: [0.25, 2]
         value: 0.5
         type: int
-        cc: 111
+        cc: 26
       - name: onsetMergeSubdivision
         range: [8, 128]
         value: 64
         type: int
-        cc: 112
+        cc: 27
     voices: [true, true, true]
+    voicesCC: 126
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
     splitVoices: false
+    splitVoicesCC: 41
     scoreRange: [null, 1]
