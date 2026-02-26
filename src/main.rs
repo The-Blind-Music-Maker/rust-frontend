@@ -440,6 +440,22 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
                 TUIEvent::SendStop => {
                     send_realtime(&mut conn_out, MIDI_STOP);
                 }
+                TUIEvent::StopPlayback => {
+                    if scheduler.is_playing() {
+                        scheduler.stop(&mut conn_out, &mut pending);
+                    }
+                }
+                TUIEvent::StartPlayback => {
+                    if !scheduler.is_playing() {
+                        scheduler.play();
+                    }
+                }
+                TUIEvent::StopEvo => {
+                    scheduler.set_request_on_boundary(false);
+                }
+                TUIEvent::StartEvo => {
+                    scheduler.set_request_on_boundary(true);
+                }
                 _ => {}
             }
         }

@@ -26,6 +26,10 @@ pub enum TUIEvent {
     SendStart,
     SendStop,
     LoadConfig(MidievolConfig),
+    StopPlayback,
+    StartPlayback,
+    StopEvo,
+    StartEvo,
 }
 
 const BPM_UP_KEY: &str = "↑";
@@ -515,6 +519,7 @@ pub struct App {
     modal: InputModal,
     select_modal: SelectModal, // NEW
     in_flight: bool,
+    playback_state: PlaybackState,
 }
 
 impl App {
@@ -529,6 +534,10 @@ impl App {
             in_flight: false,
             modal: InputModal::closed(),
             select_modal: SelectModal::closed(), // NEW
+            playback_state: PlaybackState {
+                playing: true,
+                evo: true,
+            },
         }
     }
 
@@ -869,7 +878,13 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     // --- Status bar ---
     let status = Paragraph::new(format!(
-        "(q)uit | (r)eset | (w)rite config | (l)oad config | send (p)lay signal | send (s)top signal | {}{} or (b)pm: {:3.2} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
+        "(q)uit | (r)eset | (space) {} | (e)vo: {} | (w)rite config | (l)oad config | send (p)lay signal | send (s)top signal | {}{} or (b)pm: {:3.2} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
+        if app.playback_state.playing {
+            "stop"
+        } else {
+            "start"
+        },
+        app.playback_state.evo,
         BPM_DOWN_KEY,
         BPM_UP_KEY,
         cfg.bpm,
@@ -882,6 +897,11 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     draw_input_modal(f, &app.modal);
     draw_select_modal(f, &app.select_modal);
+}
+
+struct PlaybackState {
+    playing: bool,
+    evo: bool,
 }
 
 pub fn run_tui(
@@ -1096,6 +1116,32 @@ pub fn run_tui(
 
                 if k.code == KeyCode::Char('s') {
                     let _ = tui_scheduler_tx.send(TUIEvent::SendStop);
+                }
+
+                if k.code == KeyCode::Char(' ') {
+                    app.playback_state.playing = match app.playback_state.playing {
+                        true => {
+                            let _ = tui_scheduler_tx.send(TUIEvent::StopPlayback);
+                            false
+                        }
+                        false => {
+                            let _ = tui_scheduler_tx.send(TUIEvent::StartPlayback);
+                            true
+                        }
+                    }
+                }
+
+                if k.code == KeyCode::Char('e') {
+                    app.playback_state.evo = match app.playback_state.evo {
+                        true => {
+                            let _ = tui_scheduler_tx.send(TUIEvent::StopEvo);
+                            false
+                        }
+                        false => {
+                            let _ = tui_scheduler_tx.send(TUIEvent::StartEvo);
+                            true
+                        }
+                    }
                 }
 
                 if k.code == KeyCode::Up {

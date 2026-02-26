@@ -153,6 +153,12 @@ impl PartialEq for ScheduledEvent {
 }
 impl Eq for ScheduledEvent {}
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TransportState {
+    Playing,
+    Stopped,
+}
+
 pub struct Scheduler {
     tick_period: Duration,
     start_instant: Instant,
@@ -160,7 +166,6 @@ pub struct Scheduler {
     heap: BinaryHeap<ScheduledEvent>,
     current: LoopData,
 
-    // MIDI clock config
     send_midi_clock: bool,
     ticks_per_midi_clock: u64,
 
@@ -168,6 +173,54 @@ pub struct Scheduler {
 
     tpq: u64,
     bpm: f64,
+
+    // NEW:
+    transport: TransportState,
+    request_on_boundary: bool, // gate for tx.try_send(())
+}
+
+impl Scheduler {
+    pub fn stop(
+        &mut self,
+        conn_out: &mut midir::MidiOutputConnection,
+        pending: &mut Option<LoopData>,
+    ) {
+        // silence immediately
+        all_notes_off(conn_out);
+
+        // discard any pending swap so it doesn't surprise you on next play
+        *pending = None;
+
+        // rewind "time"
+        self.start_instant = Instant::now();
+
+        // stop scheduling / playing
+        self.transport = TransportState::Stopped;
+
+        // clear scheduled musical events (and clock too, unless you explicitly want clock while stopped)
+        self.heap.clear();
+    }
+
+    pub fn play(&mut self) {
+        if self.transport == TransportState::Playing {
+            return;
+        }
+
+        self.transport = TransportState::Playing;
+        self.start_instant = Instant::now();
+
+        // rebuild from the beginning
+        self.heap.clear();
+        self.rebuild_heap_at_boundary(0);
+
+        if self.send_midi_clock {
+            self.heap.push(ScheduledEvent {
+                abs_tick: 0,
+                kind: EventKind::MidiClock,
+                period: self.ticks_per_midi_clock,
+            });
+        }
+    }
 }
 
 impl Scheduler {
@@ -188,9 +241,11 @@ impl Scheduler {
             send_midi_clock,
             ticks_per_midi_clock: ticks_per_midi_clock.max(1),
             boundary_tx,
-
             tpq: tpq.max(1),
-            bpm: bpm,
+            bpm,
+
+            transport: TransportState::Playing,
+            request_on_boundary: true,
         };
 
         // ... unchanged
@@ -205,6 +260,14 @@ impl Scheduler {
         }
 
         s
+    }
+
+    pub fn set_request_on_boundary(&mut self, enabled: bool) {
+        self.request_on_boundary = enabled;
+    }
+
+    pub fn is_playing(&self) -> bool {
+        self.transport == TransportState::Playing
     }
 
     pub fn set_bpm(&mut self, new_bpm: f64) {
@@ -243,6 +306,11 @@ impl Scheduler {
     }
 
     pub fn wait_until_next_deadline(&self) {
+        if self.transport == TransportState::Stopped {
+            thread::sleep(Duration::from_millis(5));
+            return;
+        }
+
         let Some(next_ev) = self.heap.peek() else {
             thread::sleep(Duration::from_millis(1));
             return;
@@ -271,6 +339,10 @@ impl Scheduler {
         conn_out: &mut midir::MidiOutputConnection,
         pending: &mut Option<LoopData>,
     ) {
+        if self.transport == TransportState::Stopped {
+            return;
+        }
+
         let now_tick = self.now_tick();
 
         while let Some(ev) = self.heap.peek().copied() {
@@ -286,9 +358,11 @@ impl Scheduler {
                     let _ = conn_out.send(&[MIDI_CLOCK]);
                 }
                 EventKind::Boundary => {
-                    // trigger producer once per loop start (non-blocking)
-                    if let Some(tx) = &self.boundary_tx {
-                        let _ = tx.try_send(());
+                    // trigger producer once per loop start (non-blocking) — but only if enabled
+                    if self.request_on_boundary {
+                        if let Some(tx) = &self.boundary_tx {
+                            let _ = tx.try_send(());
+                        }
                     }
                     // swap at boundary if a new loop arrived
                     if let Some(new_loop) = pending.take() {
