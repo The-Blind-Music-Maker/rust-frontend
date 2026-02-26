@@ -152,7 +152,7 @@ modFuncs:
     splitVoicesCC: 35
     scoreRange: [-1, 1]
 
-  - name: scoreNoteCount
+  - name: scoreMusicLength
     weight: 1
     weightCC: 8
     params:
