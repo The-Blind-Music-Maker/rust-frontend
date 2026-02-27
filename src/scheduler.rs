@@ -57,10 +57,26 @@ pub fn note_off(conn_out: &mut midir::MidiOutputConnection, ch: u8, note: u8) {
     let _ = conn_out.send(&[status, note, 0]);
 }
 
+// pub fn all_notes_off(conn_out: &mut midir::MidiOutputConnection) {
+//     for ch in 0u8..16 {
+//         let status = 0xB0 | ch;
+//         let _ = conn_out.send(&[status, 123, 0]);
+//     }
+// }
+
 pub fn all_notes_off(conn_out: &mut midir::MidiOutputConnection) {
     for ch in 0u8..16 {
-        let status = 0xB0 | ch;
-        let _ = conn_out.send(&[status, 123, 0]);
+        // 1. Alle mogelijke pitches expliciet NoteOff sturen
+        for pitch in 0u8..128 {
+            let _ = conn_out.send(&[0x80 | ch, pitch, 0]);
+        }
+
+        // 2. Sustain pedal reset (belangrijk voor Logic)
+        let _ = conn_out.send(&[0xB0 | ch, 64, 0]);
+
+        // 3. Eventueel extra zekerheid
+        let _ = conn_out.send(&[0xB0 | ch, 123, 0]); // All Notes Off
+        let _ = conn_out.send(&[0xB0 | ch, 120, 0]); // All Sound Off
     }
 }
 
