@@ -290,9 +290,9 @@ modFuncs:
     weightCC: 105
     params:
       - name: "maxGapBeats"
-        range: [1, 8]
+        range: [0.1, 10]
         value: 3
-        type: int
+        type: float
         cc: 28
     voices: [true, true, true]
     voicesCC: 126
