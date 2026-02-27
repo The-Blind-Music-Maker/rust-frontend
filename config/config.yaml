@@ -285,3 +285,19 @@ modFuncs:
     splitVoices: false
     splitVoicesCC: 41
     scoreRange: [null, 1]
+  - name: scoreMaxGap
+    weight: 0
+    weightCC: 105
+    params:
+      - name: "maxGapBeats"
+        range: [1, 8]
+        value: 3
+        type: int
+        cc: 28
+    voices: [true, true, true]
+    voicesCC: 126
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: false
+    splitVoices: false
+    splitVoicesCC: 41
+    scoreRange: [null, 0]
