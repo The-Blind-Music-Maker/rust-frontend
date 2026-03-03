@@ -250,9 +250,11 @@ fn list_config_files() -> Vec<String> {
 
 fn load_config_yaml(
     path: &std::path::Path,
+    old_bpm: f64,
 ) -> Result<midievol::MidievolConfig, Box<dyn std::error::Error>> {
     let bytes = std::fs::read(path)?;
-    let cfg: midievol::MidievolConfig = serde_yaml::from_slice(&bytes)?;
+    let mut cfg: midievol::MidievolConfig = serde_yaml::from_slice(&bytes)?;
+    cfg.bpm = old_bpm;
     Ok(cfg)
 }
 
@@ -1061,7 +1063,7 @@ pub fn run_tui(
                         SelectOutcome::Submit(filename) => {
                             let path = std::path::Path::new("./config").join(&filename);
 
-                            match load_config_yaml(&path) {
+                            match load_config_yaml(&path, cfg.lock().unwrap().bpm) {
                                 Ok(new_cfg) => {
                                     let _ = tui_events_tx.send(TUIEvent::LoadConfig(new_cfg));
                                     app.push_log(format!("[ui] loaded config: {}", path.display()));
