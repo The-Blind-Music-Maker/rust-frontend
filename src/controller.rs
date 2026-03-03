@@ -1,15 +1,18 @@
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::Path};
 
 use crate::midievol::{MidievolConfig, ModFunc};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Domain {
     pub cc: u8,
     pub value: u8,
     pub funcs: HashMap<String, FuncConfig>,
     pub steps_count: u32,
     pub steps: HashMap<String, HashMap<String, StepFunc>>,
+    #[serde(skip)]
+    pub filename: String,
 }
 
 impl Domain {
@@ -141,6 +144,42 @@ pub struct StepFunc {
     pub split_voices: bool,
 }
 
+pub fn load_domains(folder_path: impl AsRef<Path>) -> anyhow::Result<Vec<Domain>> {
+    let mut domains: Vec<Domain> = vec![];
+    let folder_path = folder_path.as_ref();
+
+    if !folder_path.is_dir() {
+        anyhow::bail!("Provided path is not a directory: {:?}", folder_path);
+    }
+
+    for entry in fs::read_dir(folder_path)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if !path.is_file() {
+            continue;
+        }
+
+        let is_yaml = matches!(
+            path.extension().and_then(|e| e.to_str()),
+            Some("yaml" | "yml")
+        );
+        if !is_yaml {
+            continue;
+        }
+
+        let yaml_str = fs::read_to_string(&path)?;
+        let mut domain: Domain = serde_yaml::from_str(&yaml_str)?;
+
+        domain.filename = path.to_string_lossy().to_string();
+
+        domains.push(domain);
+    }
+
+    Ok(domains)
+}
+
+#[derive(Clone, Debug)]
 pub struct Controller {
     domains: Vec<Domain>,
 }
@@ -148,41 +187,6 @@ pub struct Controller {
 impl Controller {
     pub fn new(domains: Vec<Domain>) -> Self {
         Self { domains }
-    }
-
-    pub fn load_domains(&mut self, folder_path: impl AsRef<Path>) -> anyhow::Result<()> {
-        let folder_path = folder_path.as_ref();
-
-        if !folder_path.is_dir() {
-            anyhow::bail!("Provided path is not a directory: {:?}", folder_path);
-        }
-
-        for entry in fs::read_dir(folder_path)? {
-            let entry = entry?;
-            let path = entry.path();
-
-            // Skip directories
-            if !path.is_file() {
-                continue;
-            }
-
-            // Only load .yaml or .yml files
-            let is_yaml = match path.extension().and_then(|e| e.to_str()) {
-                Some("yaml") | Some("yml") => true,
-                _ => false,
-            };
-
-            if !is_yaml {
-                continue;
-            }
-
-            let yaml_str = fs::read_to_string(&path)?;
-            let domain: Domain = serde_yaml::from_str(&yaml_str)?;
-
-            self.domains.push(domain);
-        }
-
-        Ok(())
     }
 
     pub fn apply_domains(&self, cfg: &mut MidievolConfig) {
@@ -206,6 +210,64 @@ impl Controller {
         } else {
             None
         }
+    }
+
+    pub fn domains_count(self) -> usize {
+        self.domains.len()
+    }
+}
+
+impl Controller {
+    pub fn save_step(&mut self, domain_idx: usize, step: usize, funcs: Vec<ModFunc>) -> Result<()> {
+        let domain = self
+            .domains
+            .get_mut(domain_idx)
+            .ok_or_else(|| anyhow!("domain index out of range: {}", domain_idx))?;
+
+        if step == 0 {
+            return Err(anyhow!("step must be 1-based (got 0)"));
+        }
+
+        // YAML keys are "1", "2", ...
+        let step_key = step.to_string();
+
+        // Build the step map from CURRENT modfunc values, but only for funcs this domain knows about.
+        let mut step_map: HashMap<String, StepFunc> = HashMap::new();
+
+        for func_name in domain.funcs.keys() {
+            let mf = funcs
+                .iter()
+                .find(|m| &m.name == func_name)
+                .ok_or_else(|| anyhow!("modfunc '{}' not found in provided funcs", func_name))?;
+
+            // Convert ModFunc -> StepFunc
+            let step_func = StepFunc {
+                weight: mf.weight,                                   // assuming f64
+                params: mf.params.iter().map(|p| p.value).collect(), // assuming param.value: f64
+                voices: mf.voices,                                   // [bool; 3]
+                split_voices: mf.split_voices,
+            };
+
+            step_map.insert(func_name.clone(), step_func);
+        }
+
+        // Ensure steps map exists and set/overwrite this step
+        domain.steps.insert(step_key, step_map);
+
+        // Keep steps_count in sync (at least as big as the highest step key you saved)
+        domain.steps_count = domain.steps_count.max(step as u32);
+
+        // Write YAML back to the same file
+        if domain.filename.is_empty() {
+            return Err(anyhow!(
+                "domain.filename is empty; set it in load_domains() so saving knows where to write"
+            ));
+        }
+
+        let yaml_out = serde_yaml::to_string(&domain)?;
+        fs::write(&domain.filename, yaml_out)?;
+
+        Ok(())
     }
 }
 

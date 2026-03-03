@@ -15,7 +15,7 @@ mod reconcile;
 mod scheduler;
 mod tui;
 
-use crate::controller::Controller;
+use crate::controller::{Controller, load_domains};
 use crate::midievol::{Melody, MidievolConfig};
 use crate::reconcile::ConfigReconciler;
 use crate::scheduler::{
@@ -358,13 +358,24 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     let cfg_ui = Arc::new(Mutex::new(cfg.clone()));
     let melody_ui: Arc<Mutex<Option<Melody>>> = Arc::new(Mutex::new(Some(initial.clone())));
 
+    let domains = load_domains("./config/domains").unwrap();
+    let domains_len = domains.len();
+
     // spawn TUI
     {
         let cfg_ui = Arc::clone(&cfg_ui);
         let melody_ui = Arc::clone(&melody_ui); // NEW
         let stop_tx2 = stop_tx.clone();
         thread::spawn(move || {
-            if let Err(e) = run_tui(cfg_ui, melody_ui, ui_rx, stop_tx2, tui_tx, tui_scheduler_tx) {
+            if let Err(e) = run_tui(
+                cfg_ui,
+                melody_ui,
+                ui_rx,
+                stop_tx2,
+                tui_tx,
+                tui_scheduler_tx,
+                domains_len,
+            ) {
                 eprintln!("TUI error: {e}");
             }
         });
@@ -388,6 +399,8 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     );
 
     {
+        let controller = controller::Controller::new(domains);
+
         let ui_tx = ui_tx.clone();
         let cfg_ui = Arc::clone(&cfg_ui);
         let melody_ui = Arc::clone(&melody_ui); // NEW
@@ -398,9 +411,6 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
             last_melody: initial,
             reconciler,
         };
-
-        let mut controller = controller::Controller::new(vec![]);
-        controller.load_domains("./config/domains").unwrap();
 
         thread::spawn(move || {
             producer(
@@ -555,6 +565,9 @@ fn producer(
                     state.reconciler.active = new_config;
                     cc_map = build_cc_map_from_cfg(&state.reconciler.active);
                     *cfg_ui.lock().unwrap() = state.reconciler.target.clone();
+                }
+                TUIEvent::SaveDomainStep(domain, step, funcs) => {
+                    controller.save_step(domain, step, funcs).unwrap();
                 }
                 _ => {}
             }

@@ -16,7 +16,9 @@ use ratatui::{
     widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, Wrap},
 };
 
-use crate::midievol::{self, Melody, MidievolConfig, ModFuncParamType, Score, ScoreInfo, Voices};
+use crate::midievol::{
+    self, Melody, MidievolConfig, ModFunc, ModFuncParamType, Score, ScoreInfo, Voices,
+};
 
 pub enum TUIEvent {
     Reset,
@@ -29,6 +31,7 @@ pub enum TUIEvent {
     StartPlayback,
     StopEvo,
     StartEvo,
+    SaveDomainStep(usize, usize, Vec<ModFunc>),
 }
 
 const NOTES: [&str; 12] = [
@@ -511,13 +514,14 @@ pub struct App {
     modal: InputModal,
     select_modal: SelectModal, // NEW
     in_flight: bool,
-    playback_state: PlaybackState,
+    state: AppState,
 }
 
 impl App {
     pub fn new(
         cfg: Arc<Mutex<midievol::MidievolConfig>>,
         melody: Arc<Mutex<Option<midievol::Melody>>>, // NEW
+        domain_count: usize,
     ) -> Self {
         Self {
             cfg,
@@ -526,9 +530,11 @@ impl App {
             in_flight: false,
             modal: InputModal::closed(),
             select_modal: SelectModal::closed(), // NEW
-            playback_state: PlaybackState {
+            state: AppState {
                 playing: true,
                 evo: true,
+                domain: 0,
+                domain_count,
             },
         }
     }
@@ -894,17 +900,14 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     // --- Status bar ---
     let status = Paragraph::new(format!(
-        "(q)uit | (r)eset | (space) {} | (e)vo: {} | (w)rite config | (l)oad config | send (p)lay signal | send (s)top signal | bpm: {:3.2} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
-        if app.playback_state.playing {
-            "stop"
-        } else {
-            "start"
-        },
-        app.playback_state.evo,
+        "(q)uit | (r)eset | (space) {} | (e)vo: {} | (w)rite config | (l)oad config | send (p)lay signal | send (s)top signal | bpm: {:3.2} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {} | cur domain: {}",
+        if app.state.playing { "stop" } else { "start" },
+        app.state.evo,
         bpm,
         cfg.x_gens,
         cfg.children,
         if app.in_flight { "YES" } else { "no" },
+        app.state.domain + 1,
     ));
 
     f.render_widget(status, outer[3]);
@@ -913,9 +916,11 @@ fn draw_ui(f: &mut Frame, app: &App) {
     draw_select_modal(f, &app.select_modal);
 }
 
-struct PlaybackState {
+struct AppState {
     playing: bool,
     evo: bool,
+    domain: usize,
+    domain_count: usize,
 }
 
 pub fn run_tui(
@@ -925,13 +930,14 @@ pub fn run_tui(
     stop_tx: mpsc::Sender<()>,
     tui_events_tx: mpsc::Sender<TUIEvent>,
     tui_scheduler_tx: mpsc::Sender<TUIEvent>,
+    domain_count: usize,
 ) -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
     let mut stdout = std::io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
     let backend = ratatui::backend::CrosstermBackend::new(stdout);
     let mut terminal = ratatui::Terminal::new(backend)?;
-    let mut app = App::new(Arc::clone(&cfg), melody);
+    let mut app = App::new(Arc::clone(&cfg), melody, domain_count);
 
     // UI tick so the screen refreshes even if no events arrive
     let tick_rate = Duration::from_millis(60);
@@ -1093,6 +1099,30 @@ pub fn run_tui(
                     let _ = tui_events_tx.send(TUIEvent::Reset);
                 }
 
+                if k.code == KeyCode::Up {
+                    app.state.domain = (app.state.domain + 1) % app.state.domain_count;
+                }
+
+                if k.code == KeyCode::Down {
+                    app.state.domain = if app.state.domain == 0 {
+                        app.state.domain_count - 1
+                    } else {
+                        app.state.domain - 1
+                    };
+                }
+
+                if let KeyCode::Char(c @ '1'..='9') = k.code {
+                    let step: usize = ((c as u8) - b'0') as usize;
+                    let mod_funcs: Vec<ModFunc> = app.cfg.lock().unwrap().modfuncs.clone();
+                    app.push_log(format!("update step, {}", step));
+                    let _ = tui_events_tx.send(TUIEvent::SaveDomainStep(
+                        app.state.domain,
+                        step,
+                        mod_funcs,
+                    ));
+                    // dispatch ev here
+                }
+
                 if k.code == KeyCode::Char('p') {
                     let _ = tui_scheduler_tx.send(TUIEvent::SendStart);
                 }
@@ -1102,7 +1132,7 @@ pub fn run_tui(
                 }
 
                 if k.code == KeyCode::Char(' ') {
-                    app.playback_state.playing = match app.playback_state.playing {
+                    app.state.playing = match app.state.playing {
                         true => {
                             let _ = tui_scheduler_tx.send(TUIEvent::StopPlayback);
                             false
@@ -1115,7 +1145,7 @@ pub fn run_tui(
                 }
 
                 if k.code == KeyCode::Char('e') {
-                    app.playback_state.evo = match app.playback_state.evo {
+                    app.state.evo = match app.state.evo {
                         true => {
                             let _ = tui_scheduler_tx.send(TUIEvent::StopEvo);
                             false
