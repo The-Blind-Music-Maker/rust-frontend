@@ -133,7 +133,7 @@ modFuncs:
         type: float
         cc: 14
       - name: Enabled grids
-        range: [0, 8]
+        range: [0, 16]
         value: 7
         # 001 == 1 == 8
         # 010 == 2 == 16
@@ -142,8 +142,14 @@ modFuncs:
         # 101 == 5 == 8,8t
         # 110 == 6 == 16,8t
         # 111 == 7 == 8,16,8t
+        # 1000 == 8 == 5 
         type: int
         cc: 100
+      - name: scoreMultiple
+        range: [0, 1]
+        value: 1
+        type: int
+        
     voices: [true, true, true]
     voicesCC: 120
     normalizationFunc: normalizeMinOneToOne

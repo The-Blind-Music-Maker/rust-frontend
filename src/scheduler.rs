@@ -66,6 +66,7 @@ pub fn note_off(conn_out: &mut midir::MidiOutputConnection, ch: u8, note: u8) {
 
 pub fn all_notes_off(conn_out: &mut midir::MidiOutputConnection) {
     for ch in 0u8..16 {
+        if ch == 9 {continue}
         // 1. Alle mogelijke pitches expliciet NoteOff sturen
         for pitch in 0u8..128 {
             let _ = conn_out.send(&[0x80 | ch, pitch, 0]);
