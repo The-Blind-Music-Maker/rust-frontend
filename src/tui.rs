@@ -20,7 +20,6 @@ use crate::midievol::{self, Melody, MidievolConfig, ModFuncParamType, Score, Sco
 
 pub enum TUIEvent {
     Reset,
-    NewBPM(f64),
     SetChildren(u32),
     SetXGens(u32),
     SendStart,
@@ -31,12 +30,6 @@ pub enum TUIEvent {
     StopEvo,
     StartEvo,
 }
-
-const BPM_UP_KEY: &str = "↑";
-const BPM_DOWN_KEY: &str = "↓";
-const BPM_STEP: f64 = 1.0;
-const BPM_MIN: f64 = 20.0;
-const BPM_MAX: f64 = 300.0;
 
 const NOTES: [&str; 12] = [
     "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
@@ -250,11 +243,9 @@ fn list_config_files() -> Vec<String> {
 
 fn load_config_yaml(
     path: &std::path::Path,
-    old_bpm: f64,
 ) -> Result<midievol::MidievolConfig, Box<dyn std::error::Error>> {
     let bytes = std::fs::read(path)?;
-    let mut cfg: midievol::MidievolConfig = serde_yaml::from_slice(&bytes)?;
-    cfg.bpm = old_bpm;
+    let cfg: midievol::MidievolConfig = serde_yaml::from_slice(&bytes)?;
     Ok(cfg)
 }
 
@@ -417,7 +408,6 @@ fn save_config_yaml(
 #[derive(Clone, Debug)]
 pub enum ModalKind {
     None,
-    SetBpm,
     SetChildren,
     SetXGens,
     SaveConfig,
@@ -893,18 +883,25 @@ fn draw_ui(f: &mut Frame, app: &App) {
 
     f.render_widget(logs, area);
 
+    let bpm = {
+        let m = app.melody.lock().unwrap();
+        if let Some(m) = m.as_ref() {
+            m.bpm.clone()
+        } else {
+            0.0
+        }
+    };
+
     // --- Status bar ---
     let status = Paragraph::new(format!(
-        "(q)uit | (r)eset | (space) {} | (e)vo: {} | (w)rite config | (l)oad config | send (p)lay signal | send (s)top signal | {}{} or (b)pm: {:3.2} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
+        "(q)uit | (r)eset | (space) {} | (e)vo: {} | (w)rite config | (l)oad config | send (p)lay signal | send (s)top signal | bpm: {:3.2} | (x)_gens: {} | (c)hildren: {} | producer in-flight: {}",
         if app.playback_state.playing {
             "stop"
         } else {
             "start"
         },
         app.playback_state.evo,
-        BPM_DOWN_KEY,
-        BPM_UP_KEY,
-        cfg.bpm,
+        bpm,
         cfg.x_gens,
         cfg.children,
         if app.in_flight { "YES" } else { "no" },
@@ -954,25 +951,6 @@ pub fn run_tui(
                         ModalOutcome::Submit(txt) => {
                             // Apply based on kind (NOW it's safe to touch app/cfg/send)
                             match kind {
-                                ModalKind::SetBpm => {
-                                    match txt.parse::<f64>() {
-                                        Ok(mut bpm) => {
-                                            bpm = bpm.clamp(BPM_MIN, BPM_MAX);
-                                            {
-                                                let mut cfg = cfg.lock().unwrap();
-                                                cfg.bpm = bpm;
-                                            }
-                                            let _ = tui_scheduler_tx.send(TUIEvent::NewBPM(bpm));
-                                            let _ = tui_events_tx.send(TUIEvent::NewBPM(bpm));
-                                            app.push_log(format!("[ui] bpm set to {bpm:.1}"));
-                                            app.modal.close();
-                                        }
-                                        Err(_) => {
-                                            app.modal.error = Some("Invalid number".to_string());
-                                            // keep modal open
-                                        }
-                                    }
-                                }
                                 ModalKind::SetChildren => {
                                     match txt.parse::<u32>() {
                                         Ok(mut children) => {
@@ -1063,7 +1041,7 @@ pub fn run_tui(
                         SelectOutcome::Submit(filename) => {
                             let path = std::path::Path::new("./config").join(&filename);
 
-                            match load_config_yaml(&path, cfg.lock().unwrap().bpm) {
+                            match load_config_yaml(&path) {
                                 Ok(new_cfg) => {
                                     let _ = tui_events_tx.send(TUIEvent::LoadConfig(new_cfg));
                                     app.push_log(format!("[ui] loaded config: {}", path.display()));
@@ -1082,18 +1060,6 @@ pub fn run_tui(
                     }
 
                     continue; // don't fall through
-                }
-
-                // 2) Normal keys (open modal etc)
-                if k.code == KeyCode::Char('b') {
-                    let current = cfg.lock().unwrap().bpm;
-                    app.modal.open_with(
-                        ModalKind::SetBpm,
-                        "Set BPM",
-                        "Type a BPM (20..300) and press Enter.",
-                        format!("{current:.2}"),
-                    );
-                    continue;
                 }
 
                 if k.code == KeyCode::Char('x') {
@@ -1159,26 +1125,6 @@ pub fn run_tui(
                             true
                         }
                     }
-                }
-
-                if k.code == KeyCode::Up {
-                    let new_bpm = {
-                        let mut cfg = cfg.lock().unwrap();
-                        cfg.bpm = (cfg.bpm + BPM_STEP).clamp(BPM_MIN, BPM_MAX).round();
-                        cfg.bpm
-                    };
-                    let _ = tui_scheduler_tx.send(TUIEvent::NewBPM(new_bpm));
-                    let _ = tui_events_tx.send(TUIEvent::NewBPM(new_bpm));
-                }
-
-                if k.code == KeyCode::Down {
-                    let new_bpm = {
-                        let mut cfg = cfg.lock().unwrap();
-                        cfg.bpm = (cfg.bpm - BPM_STEP).clamp(BPM_MIN, BPM_MAX).round();
-                        cfg.bpm
-                    };
-                    let _ = tui_scheduler_tx.send(TUIEvent::NewBPM(new_bpm));
-                    let _ = tui_events_tx.send(TUIEvent::NewBPM(new_bpm));
                 }
 
                 if k.code == KeyCode::Char('w') {

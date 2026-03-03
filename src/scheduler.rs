@@ -96,6 +96,7 @@ pub struct LoopData {
     pub avg_notes_per_q: u8,
     pub feel: Feel,
     pub feel_score: f64,
+    pub bpm: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -382,6 +383,7 @@ impl Scheduler {
                     }
                     // swap at boundary if a new loop arrived
                     if let Some(new_loop) = pending.take() {
+                        self.set_bpm(new_loop.bpm);
                         all_notes_off(conn_out);
                         let mediants = &new_loop.voice_mediants.clone();
                         let avg_notes_per_q = new_loop.avg_notes_per_q.clone();

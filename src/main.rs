@@ -257,6 +257,7 @@ fn melody_to_loop_data(
         avg_notes_per_q: avg_notes_per_q.unwrap_or(0),
         feel_score,
         feel,
+        bpm: m.bpm,
     };
 
     // Add metronome track (unchanged)
@@ -311,7 +312,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
     };
 
     // ---- Tempo / internal scheduler resolution ----
-    let bpm: f64 = cfg.bpm;
+    let bpm: f64 = initial.bpm;
     let tpq: u64 = 600; // internal ticks per quarter note (NOT MIDI clock)
 
     // MIDI clock output (24 PPQN)
@@ -433,7 +434,6 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
 
         while let Ok(ev) = tui_scheduler_rx.try_recv() {
             match ev {
-                TUIEvent::NewBPM(new_bpm) => scheduler.set_bpm(new_bpm),
                 TUIEvent::SendStart => {
                     send_realtime(&mut conn_out, MIDI_START);
                 }
@@ -483,12 +483,12 @@ fn generate_new_melody(cfg: &MidievolConfig) -> Melody {
     let mut r = rand::rng();
 
     loop {
-        let dna = midievol::create_random_melody(8, &mut r);
+        let (dna, bpm) = midievol::create_random_melody(8, &mut r);
         let init_payload = midievol::InitPayload {
             dna: dna.clone(),
             voices: cfg.voices.clone(),
             modfuncs: cfg.modfuncs.clone(),
-            bpm: cfg.bpm,
+            bpm: bpm,
         };
 
         match midievol::send_init_req("http://localhost:8080/init", init_payload.clone()) {
@@ -550,7 +550,6 @@ fn producer(
                 }
                 TUIEvent::SetChildren(children) => state.reconciler.target.children = children,
                 TUIEvent::SetXGens(x_gens) => state.reconciler.target.x_gens = x_gens,
-                TUIEvent::NewBPM(bpm) => state.reconciler.target.bpm = bpm,
                 TUIEvent::LoadConfig(new_config) => {
                     state.reconciler.target = new_config.clone();
                     state.reconciler.active = new_config;
@@ -605,14 +604,11 @@ fn producer(
 
             in_flight = false;
             let _ = ui_tx.send(UiEvent::ProducerInFlight(false));
-            let new_bpm = new_melody.bpm;
 
             state.last_melody = new_melody;
 
             let scores = &state.last_melody.scores_per_func;
             let _ = ui_tx.send(UiEvent::Log(format!("{scores:?}")));
-
-            *melody_ui.lock().unwrap() = Some(state.last_melody.clone());
 
             let loop_data = melody_to_loop_data(
                 &state.last_melody,
@@ -624,7 +620,6 @@ fn producer(
                 64,
             );
 
-            state.reconciler.target.bpm = new_bpm;
             *cfg_ui.lock().unwrap() = state.reconciler.target.clone();
             if loop_tx.send(loop_data).is_err() {
                 return;
@@ -636,6 +631,7 @@ fn producer(
         // ---------------- Boundary tick -> evolve ----------------
         match boundary_rx.recv_timeout(Duration::from_millis(50)) {
             Ok(()) => {
+                *melody_ui.lock().unwrap() = Some(state.last_melody.clone());
                 if !in_flight {
                     in_flight = true;
                     token = token.wrapping_add(1);
@@ -656,7 +652,7 @@ fn producer(
                         children: cfg.children,
                         voices: cfg.voices.clone(),
                         modfuncs: cfg.modfuncs.clone(),
-                        bpm: cfg.bpm,
+                        bpm: state.last_melody.bpm,
                     };
 
                     thread::spawn(move || {

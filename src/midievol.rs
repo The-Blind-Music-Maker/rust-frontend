@@ -61,13 +61,17 @@ pub fn create_random_note(rng: &mut impl Rng) -> String {
     format!("{a}{b}{c}{d}")
 }
 
+const BPM_MIN: f64 = 60.0;
+const BPM_MAX: f64 = 180.0;
+
 /// Concatenate `num_notes` random notes into one DNA string.
-pub fn create_random_melody(num_notes: usize, rng: &mut impl Rng) -> String {
+pub fn create_random_melody(num_notes: usize, rng: &mut impl Rng) -> (String, f64) {
     let mut dna = String::new();
     for _ in 0..num_notes {
         dna.push_str(&create_random_note(rng));
     }
-    dna
+
+    (dna, rng.random_range(BPM_MIN..=BPM_MAX))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -147,7 +151,6 @@ pub struct MidievolConfig {
     pub voices: Voices,
     pub x_gens: u32,
     pub children: u32,
-    pub bpm: f64,
 
     #[serde(rename = "modFuncs")]
     pub modfuncs: Vec<ModFunc>,
@@ -158,7 +161,6 @@ impl MidievolConfig {
         voices_eq(&self.voices, &other.voices)
             && self.x_gens == other.x_gens
             && self.children == other.children
-            && feq(self.bpm, other.bpm, tol)
             && vec_modfunc_eq(&self.modfuncs, &other.modfuncs, tol)
     }
 }
