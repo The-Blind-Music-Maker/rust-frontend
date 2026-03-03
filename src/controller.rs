@@ -1,5 +1,7 @@
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::{collections::HashMap, fs, path::Path};
 
 use crate::midievol::{MidievolConfig, ModFunc};
@@ -10,13 +12,14 @@ pub struct Domain {
     pub value: u8,
     pub funcs: HashMap<String, FuncConfig>,
     pub steps_count: u32,
-    pub steps: HashMap<String, HashMap<String, StepFunc>>,
+    // ✅ ordered by step key ("1","2","3"...)
+    pub steps: BTreeMap<String, BTreeMap<String, StepFunc>>,
     #[serde(skip)]
     pub filename: String,
 }
 
 impl Domain {
-    pub fn get_values(&self) -> Option<HashMap<String, StepFunc>> {
+    pub fn get_values(&self) -> Option<BTreeMap<String, StepFunc>> {
         let n = self.steps_count as usize;
         if n == 0 {
             return None;
@@ -40,7 +43,7 @@ impl Domain {
         // Helper: choose closest step for "none"
         let pick_hi = t >= 0.5;
 
-        let mut ret: HashMap<String, StepFunc> = HashMap::new();
+        let mut ret: BTreeMap<String, StepFunc> = BTreeMap::new();
 
         for func_name in self.funcs.keys() {
             let func = self.funcs.get(func_name)?;
@@ -104,7 +107,7 @@ impl Domain {
     }
 
     /// Gets step by 0-based index from YAML keys like "1", "2", ...
-    fn get_step_by_index(&self, idx0: usize) -> Option<&HashMap<String, StepFunc>> {
+    fn get_step_by_index(&self, idx0: usize) -> Option<&BTreeMap<String, StepFunc>> {
         // Your YAML uses "1" as first step; map 0 -> "1"
         let key = (idx0 + 1).to_string();
         self.steps.get(&key)
@@ -145,34 +148,42 @@ pub struct StepFunc {
 }
 
 pub fn load_domains(folder_path: impl AsRef<Path>) -> anyhow::Result<Vec<Domain>> {
-    let mut domains: Vec<Domain> = vec![];
     let folder_path = folder_path.as_ref();
 
     if !folder_path.is_dir() {
         anyhow::bail!("Provided path is not a directory: {:?}", folder_path);
     }
 
-    for entry in fs::read_dir(folder_path)? {
-        let entry = entry?;
-        let path = entry.path();
+    // 1️⃣ Collect YAML file paths first
+    let mut paths: Vec<PathBuf> = fs::read_dir(folder_path)?
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let path = entry.path();
 
-        if !path.is_file() {
-            continue;
-        }
+            if !path.is_file() {
+                return None;
+            }
 
-        let is_yaml = matches!(
-            path.extension().and_then(|e| e.to_str()),
-            Some("yaml" | "yml")
-        );
-        if !is_yaml {
-            continue;
-        }
+            let is_yaml = matches!(
+                path.extension().and_then(|e| e.to_str()),
+                Some("yaml" | "yml")
+            );
 
+            if is_yaml { Some(path) } else { None }
+        })
+        .collect();
+
+    // 2️⃣ Sort alphabetically by filename
+    paths.sort_by(|a, b| a.file_name().unwrap().cmp(b.file_name().unwrap()));
+
+    // 3️⃣ Load in sorted order
+    let mut domains = Vec::with_capacity(paths.len());
+
+    for path in paths {
         let yaml_str = fs::read_to_string(&path)?;
         let mut domain: Domain = serde_yaml::from_str(&yaml_str)?;
 
         domain.filename = path.to_string_lossy().to_string();
-
         domains.push(domain);
     }
 
@@ -232,7 +243,7 @@ impl Controller {
         let step_key = step.to_string();
 
         // Build the step map from CURRENT modfunc values, but only for funcs this domain knows about.
-        let mut step_map: HashMap<String, StepFunc> = HashMap::new();
+        let mut step_map: BTreeMap<String, StepFunc> = BTreeMap::new();
 
         for func_name in domain.funcs.keys() {
             let mf = funcs
