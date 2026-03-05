@@ -87,6 +87,7 @@ pub enum Feel {
     Eight,
     Sixteenth,
     EightTriplet,
+    Quintuplet,
 }
 
 #[derive(Clone, Debug)]
@@ -393,6 +394,7 @@ impl Scheduler {
                             Feel::Eight => 1,
                             Feel::Sixteenth => 2,
                             Feel::EightTriplet => 3,
+                            Feel::Quintuplet => 4,
                         };
                         let feel_score: u8 = ((127 as f64) * new_loop.feel_score.clone())
                             .round()
