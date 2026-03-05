@@ -283,7 +283,7 @@ impl Controller {
 }
 
 fn apply_values_to_modfunc(mf: &mut ModFunc, v: &StepFunc) {
-    mf.weight = v.weight.round();
+    mf.weight = v.weight;
 
     for (idx, param) in v.params.iter().enumerate() {
         match mf.params[idx].t {
