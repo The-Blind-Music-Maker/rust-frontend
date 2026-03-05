@@ -11,8 +11,6 @@ pub struct Domain {
     pub cc: u8,
     pub value: u8,
     pub funcs: HashMap<String, FuncConfig>,
-    pub steps_count: u32,
-    // ✅ ordered by step key ("1","2","3"...)
     pub steps: BTreeMap<u32, BTreeMap<String, StepFunc>>,
     #[serde(skip)]
     pub filename: String,
@@ -20,7 +18,7 @@ pub struct Domain {
 
 impl Domain {
     pub fn get_values(&self) -> Option<BTreeMap<String, StepFunc>> {
-        let n = self.steps_count as usize;
+        let n = self.steps.len();
         if n == 0 {
             return None;
         }
@@ -106,11 +104,15 @@ impl Domain {
         Some(ret)
     }
 
-    /// Gets step by 0-based index from YAML keys like "1", "2", ...
-    fn get_step_by_index(&self, idx0: usize) -> Option<&BTreeMap<String, StepFunc>> {
-        // Your YAML uses "1" as first step; map 0 -> "1"
-        let key: u32 = idx0.try_into().unwrap();
-        self.steps.get(&key)
+    // /// Gets step by 0-based index from YAML keys like "1", "2", ...
+    // fn get_step_by_index(&self, idx0: usize) -> Option<&BTreeMap<String, StepFunc>> {
+    //     // Your YAML uses "1" as first step; map 0 -> "1"
+    //     let key: u32 = idx0.try_into().unwrap();
+    //     self.steps.get(&key)
+    // }
+
+    fn get_step_by_index(&self, idx: usize) -> Option<&BTreeMap<String, StepFunc>> {
+        self.steps.iter().nth(idx).map(|(_, v)| v)
     }
 }
 
@@ -268,9 +270,6 @@ impl Controller {
 
         // Ensure steps map exists and set/overwrite this step
         domain.steps.insert(step_key, step_map);
-
-        // Keep steps_count in sync (at least as big as the highest step key you saved)
-        domain.steps_count = domain.steps_count.max(step as u32);
 
         // Write YAML back to the same file
         if domain.filename.is_empty() {

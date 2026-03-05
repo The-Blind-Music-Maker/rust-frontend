@@ -1117,7 +1117,7 @@ pub fn run_tui(
                 }
 
                 if let KeyCode::Char(c @ '1'..='9') = k.code {
-                    let step: usize = ((c as u8) - b'0') as usize;
+                    let step: usize = ((c as u8) - b'0') as usize * 10;
                     let mod_funcs: Vec<ModFunc> = app.cfg.lock().unwrap().modfuncs.clone();
                     app.push_log(format!("update step, {}", step));
                     let _ = tui_events_tx.send(TUIEvent::SaveDomainStep(
@@ -1129,7 +1129,7 @@ pub fn run_tui(
                 }
 
                 if let KeyCode::Char('0') = k.code {
-                    let step: usize = 10;
+                    let step: usize = 10 * 10;
                     let mod_funcs: Vec<ModFunc> = app.cfg.lock().unwrap().modfuncs.clone();
                     app.push_log(format!("update step, {}", step));
                     let _ = tui_events_tx.send(TUIEvent::SaveDomainStep(
@@ -1140,7 +1140,7 @@ pub fn run_tui(
                 }
 
                 if let KeyCode::Char('-') = k.code {
-                    let step: usize = 11;
+                    let step: usize = 11 * 10;
                     let mod_funcs: Vec<ModFunc> = app.cfg.lock().unwrap().modfuncs.clone();
                     app.push_log(format!("update step, {}", step));
                     let _ = tui_events_tx.send(TUIEvent::SaveDomainStep(
@@ -1151,7 +1151,7 @@ pub fn run_tui(
                 }
 
                 if let KeyCode::Char('=') = k.code {
-                    let step: usize = 12;
+                    let step: usize = 12 * 10;
                     let mod_funcs: Vec<ModFunc> = app.cfg.lock().unwrap().modfuncs.clone();
                     app.push_log(format!("update step, {}", step));
                     let _ = tui_events_tx.send(TUIEvent::SaveDomainStep(
