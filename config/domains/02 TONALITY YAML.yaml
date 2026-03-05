@@ -1,0 +1,487 @@
+cc: 2
+value: 127
+funcs:
+  scoreMelodicMotifs:
+    weight: linear
+    params: []
+  scoreMeasureForChord:
+    weight: linear
+    params:
+    - none
+    - linear
+  scoreSimultaneousIntervals:
+    weight: linear
+    params: []
+  scoreTonality:
+    weight: linear
+    params:
+    - none
+steps:
+  10:
+    scoreMeasureForChord:
+      weight: 0.0
+      params:
+      - 63.0
+      - 0.9
+      voices:
+      - true
+      - true
+      - false
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 0.0
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreSimultaneousIntervals:
+      weight: 0.0
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 1.0
+      params:
+      - 51.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  20:
+    scoreMeasureForChord:
+      weight: 1.0
+      params:
+      - 63.0
+      - 0.9
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 0.0
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreSimultaneousIntervals:
+      weight: 0.5
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 2.0
+      params:
+      - 51.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  30:
+    scoreMeasureForChord:
+      weight: 1.0
+      params:
+      - 63.0
+      - 0.9
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 0.0
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreSimultaneousIntervals:
+      weight: 0.5
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 3.0
+      params:
+      - 32.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  35:
+    scoreMeasureForChord:
+      weight: 1.0
+      params:
+      - 3.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - false
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 1.0
+      params: []
+      voices:
+      - false
+      - false
+      - true
+      splitVoices: false
+    scoreSimultaneousIntervals:
+      weight: 1
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 3.0
+      params:
+      - 32.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  40:
+    scoreMeasureForChord:
+      weight: 2.5
+      params:
+      - 3.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 1.0
+      params: []
+      voices:
+      - false
+      - false
+      - true
+      splitVoices: false
+    scoreSimultaneousIntervals:
+      weight: 1
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 3.0
+      params:
+      - 34.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  50:
+    scoreMeasureForChord:
+      weight: 1.0
+      params:
+      - 56.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 2.0
+      params: []
+      voices:
+      - false
+      - false
+      - true
+      splitVoices: false
+    scoreSimultaneousIntervals:
+      weight: 0
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 2.0
+      params:
+      - 12.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  55:
+    scoreMeasureForChord:
+      weight: 2.5
+      params:
+      - 56.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 1.0
+      params: []
+      voices:
+      - false
+      - false
+      - true
+      splitVoices: false
+    scoreSimultaneousIntervals:
+      weight: 0
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 3.0
+      params:
+      - 12.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  60:
+    scoreMeasureForChord:
+      weight: 2.5
+      params:
+      - 56.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 2.0
+      params: []
+      voices:
+      - false
+      - false
+      - true
+      splitVoices: false
+    scoreSimultaneousIntervals:
+      weight: 1.0
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 3.0
+      params:
+      - 14.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  70:
+    scoreMeasureForChord:
+      weight: 1.5
+      params:
+      - 56.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 2.0
+      params: []
+      voices:
+      - false
+      - true
+      - true
+      splitVoices: false
+    scoreSimultaneousIntervals:
+      weight: 1.0
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 1.5
+      params:
+      - 15.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  80: #CHORD TENSION AND CLUSTERS ALLES + MOTIFS LEAD + TONAL MAJ/MIN/ALT/WHOLE
+    scoreMeasureForChord:
+      weight: 2
+      params:
+      - 48.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 3.0
+      params: []
+      voices:
+      - false
+      - false
+      - true
+      splitVoices: false
+    scoreSimultaneousIntervals:
+      weight: 0.0
+      params: []
+      voices:
+      - false
+      - false
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 1.5
+      params:
+      - 15.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  85:
+    scoreMeasureForChord:
+      weight: 1
+      params:
+      - 48.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 3.0
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreSimultaneousIntervals:
+      weight: 0
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 2.5
+      params:
+      - 15.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  90:
+    scoreMeasureForChord:
+      weight: 2.0
+      params:
+      - 48.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 3.0
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreSimultaneousIntervals:
+      weight: 2
+      params: []
+      voices:
+      - false
+      - true
+      - false
+      splitVoices: false
+    scoreTonality:
+      weight: 3.0
+      params:
+      - 31.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  100:
+    scoreMeasureForChord:
+      weight: 2.0
+      params:
+      - 48.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMelodicMotifs:
+      weight: 3.0
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreSimultaneousIntervals:
+      weight: 2
+      params: []
+      voices:
+      - false
+      - true
+      - true
+      splitVoices: false
+    scoreTonality:
+      weight: 3.0
+      params:
+      - 63.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false

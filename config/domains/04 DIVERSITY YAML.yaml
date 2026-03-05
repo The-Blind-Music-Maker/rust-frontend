@@ -1,0 +1,224 @@
+cc: 4
+value: 2
+funcs:
+  scoreNoteLengthDiversity:
+    weight: linear
+    params:
+    - linear
+    - linear
+  scoreVelocityDiversity:
+    weight: linear
+    params:
+    - linear
+    - linear
+steps:
+  10:
+    scoreNoteLengthDiversity:
+      weight: 1.0
+      params:
+      - 0.7
+      - 0.3
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVelocityDiversity:
+      weight: 1.0
+      params:
+      - 0.3
+      - 0.3
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+  20:
+    scoreNoteLengthDiversity:
+      weight: 1.0
+      params:
+      - 0.2
+      - 0.7
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVelocityDiversity:
+      weight: 2.0
+      params:
+      - 0.2
+      - 0.2
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+  30:
+    scoreNoteLengthDiversity:
+      weight: 2.0
+      params:
+      - 0.3
+      - 0.6
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVelocityDiversity:
+      weight: 3.0
+      params:
+      - 0.4
+      - 0.2
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+  40:
+    scoreNoteLengthDiversity:
+      weight: 2.0
+      params:
+      - 0.5
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVelocityDiversity:
+      weight: 2.0
+      params:
+      - 0.4
+      - 0.4
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+  50:
+    scoreNoteLengthDiversity:
+      weight: 2.0
+      params:
+      - 0.3
+      - 0.3
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVelocityDiversity:
+      weight: 2.0
+      params:
+      - 0.3
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+  60:
+    scoreNoteLengthDiversity:
+      weight: 2.5
+      params:
+      - 0.1
+      - 0.2
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVelocityDiversity:
+      weight: 1.5
+      params:
+      - 0.3
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+  70:
+    scoreNoteLengthDiversity:
+      weight: 3.0
+      params:
+      - 0.1
+      - 0.1
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVelocityDiversity:
+      weight: 2.0
+      params:
+      - 0.3
+      - 0.8
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+  80:
+    scoreNoteLengthDiversity:
+      weight: 2.0
+      params:
+      - 0.5
+      - 0.1
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVelocityDiversity:
+      weight: 2.0
+      params:
+      - 0.4
+      - 0.8
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+  90:
+    scoreNoteLengthDiversity:
+      weight: 3.0
+      params:
+      - 0.5
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVelocityDiversity:
+      weight: 2.0
+      params:
+      - 0.5
+      - 0.6
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+  100:
+    scoreNoteLengthDiversity:
+      weight: 3.0
+      params:
+      - 0.4
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVelocityDiversity:
+      weight: 1.5
+      params:
+      - 0.5
+      - 0.8
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true

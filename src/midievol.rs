@@ -68,10 +68,10 @@ const BPM_MAX: f64 = 180.0;
 pub fn create_random_melody(rng: &mut impl Rng) -> (String, f64) {
     let mut dna = String::new();
     let num_notes_r: f64 = rng.random();
-    let num_notes: u32 = (num_notes_r * 12.0).round() as u32 + 4;
+    let num_notes: u32 = (num_notes_r * 3.0).round() as u32 + 4;
 
     let max_pos_r: f64 = rng.random();
-    let max_pos: u32 = (max_pos_r * 9600.0).round() as u32;
+    let max_pos: u32 = (max_pos_r * 1200.0).round() as u32 + 4*600;
 
     for _ in 0..num_notes {
         dna.push_str(&create_random_note(max_pos, rng));

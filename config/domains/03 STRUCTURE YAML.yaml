@@ -1,0 +1,576 @@
+cc: 3
+value: 127
+funcs:
+  scoreVoiceDensity:
+    weight: linear
+    params:
+    - linear
+    - linear
+    - linear
+  scoreNoteDistribution:
+    weight: linear
+    params:
+    - linear
+  scoreOverlap:
+    weight: linear
+    params:
+    - linear
+    - linear
+    - linear
+  scoreMaxGap:
+    weight: linear
+    params:
+    - linear
+  scoreEnergyWaves:
+    weight: linear
+    params:
+    - linear
+    - linear
+    - none
+    - none
+    - none
+steps:
+  10:   #LEEG Energywaves UIT, max2gap, overlap UIT, Density 0.5/0.5/0.5/
+    scoreEnergyWaves:
+      weight: 0.0
+      params:
+      - 0.0
+      - 3.0
+      - 4.0
+      - 0.5
+      - 64.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreMaxGap:
+      weight: 1.0
+      params:
+      - 2.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreNoteDistribution:
+      weight: 0.0
+      params:
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreOverlap:
+      weight: 0.0
+      params:
+      - 0.0
+      - 0.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVoiceDensity:
+      weight: 2.0
+      params:
+      - 0.5
+      - 0.5
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  15:   #LEEG NO OVERLAP AT ALL Energywaves UIT, max2gap, overlap UIT, Density 0.5/0.5/0.5/
+    scoreEnergyWaves:
+      weight: 0.0
+      params:
+      - 0.0
+      - 3.0
+      - 4.0
+      - 0.5
+      - 64.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreMaxGap:
+      weight: 1.0
+      params:
+      - 2.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreNoteDistribution:
+      weight: 0.0
+      params:
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreOverlap:
+      weight: 2.0
+      params:
+      - 0.0
+      - 0.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreVoiceDensity:
+      weight: 2.0
+      params:
+      - 0.5
+      - 0.5
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  18:   #LEEG NO OVERLAP AT ALL Energywaves CHILL, max2gap, overlap 0/0/0 AAN SPLIT, Density 0.5/0.5/0.5/
+    scoreEnergyWaves:
+      weight: 2.0
+      params:
+      - 0.0
+      - 2.0
+      - 4.0
+      - 0.5
+      - 64.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreMaxGap:
+      weight: 1.0
+      params:
+      - 2.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreNoteDistribution:
+      weight: 0.0
+      params:
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreOverlap:
+      weight: 1.0
+      params:
+      - 0.0
+      - 0.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreVoiceDensity:
+      weight: 2.0
+      params:
+      - 0.5
+      - 0.5
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  20:   #Energywaves UIT, max2gap, overlap 0/0/0 SPLIT hard, Density 1/1/1 
+    scoreEnergyWaves:
+      weight: 0.0
+      params:
+      - 0.0
+      - 3.0
+      - 4.0
+      - 0.5
+      - 64.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreMaxGap:
+      weight: 1.0
+      params:
+      - 2.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreNoteDistribution:
+      weight: 0.0
+      params:
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreOverlap:
+      weight: 3.0
+      params:
+      - 0.0
+      - 0.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreVoiceDensity:
+      weight: 2.0
+      params:
+      - 1
+      - 1
+      - 1
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  30:   #Energywaves CHILL, max2gap, overlapMID light, Density 1/2/1
+    scoreEnergyWaves:
+      weight: 1.0
+      params:
+      - 0.0
+      - 2.0
+      - 4.0
+      - 0.5
+      - 64.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreMaxGap:
+      weight: 1.0
+      params:
+      - 2.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreNoteDistribution:
+      weight: 0.0
+      params:
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreOverlap:
+      weight: 1.0
+      params:
+      - 0.0
+      - 2.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreVoiceDensity:
+      weight: 2.0
+      params:
+      - 1
+      - 2
+      - 1
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  40:                                #Energywaves vlak, max1gap, overlapMID, Density 1/2/1
+    scoreEnergyWaves:
+      weight: 2.0
+      params:
+      - 0.0
+      - 3.0
+      - 4.0
+      - 0.5
+      - 64.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMaxGap:
+      weight: 1.0
+      params:
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreNoteDistribution:
+      weight: 0.0
+      params:
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreOverlap:
+      weight: 1.0
+      params:
+      - 0.0
+      - 2.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreVoiceDensity:
+      weight: 2.0
+      params:
+      - 1
+      - 2
+      - 1
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  50:                                #Energywaves vlak, max1gap, overlapALLES GLIDE /Density 1.5/1.5/1.5
+    scoreEnergyWaves:
+      weight: 2.0
+      params:
+      - 0.0
+      - 4.0
+      - 4.0
+      - 0.5
+      - 64.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreMaxGap:
+      weight: 1.0
+      params:
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreNoteDistribution:
+      weight: 0.0
+      params:
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreOverlap:
+      weight: 1.0
+      params:
+      - 1.0
+      - 2.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreVoiceDensity:
+      weight: 2.0
+      params:
+      - 1.5
+      - 1.5
+      - 1.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  110:                                #DRUK / WEIRD ENERGYWAVES JUMPY. DENSITY 1.5/3/1.5
+    scoreEnergyWaves:
+      weight: 4.0
+      params:
+      - 6.0
+      - 10.0
+      - 4.0
+      - 0.5
+      - 64.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreMaxGap:
+      weight: 3
+      params:
+      - 4.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreNoteDistribution:
+      weight: 0.0
+      params:
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreOverlap:
+      weight: 0.0
+      params:
+      - 0.0
+      - 1.5
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreVoiceDensity:
+      weight: 2.0
+      params:
+      - 1.5
+      - 3
+      - 1.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  115:                                #DRUK / WEIRD ENERGYWAVES JUMPY. DENSITY 1.5/3/1.8
+    scoreEnergyWaves:
+      weight: 4.0
+      params:
+      - 8.0
+      - 10.0
+      - 4.0
+      - 0.5
+      - 64.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreMaxGap:
+      weight: 3
+      params:
+      - 4.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreNoteDistribution:
+      weight: 0.0
+      params:
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreOverlap:
+      weight: 0.0
+      params:
+      - 0.0
+      - 2.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreVoiceDensity:
+      weight: 2.0
+      params:
+      - 1.5
+      - 3
+      - 1.8
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  120:                                #DRUK / WEIRD ENERGYWAVES JUMPY. DENSITY 2/4/2
+    scoreEnergyWaves:
+      weight: 4.0
+      params:
+      - 8.0
+      - 10.0
+      - 4.0
+      - 0.5
+      - 64.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreMaxGap:
+      weight: 3
+      params:
+      - 4.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreNoteDistribution:
+      weight: 0.0
+      params:
+      - 0.5
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreOverlap:
+      weight: 0.0
+      params:
+      - 0.0
+      - 2.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+    scoreVoiceDensity:
+      weight: 2.0
+      params:
+      - 2
+      - 4
+      - 2
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+
+
+
+
