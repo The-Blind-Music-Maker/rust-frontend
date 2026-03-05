@@ -570,6 +570,16 @@ fn producer(
                 TUIEvent::SaveDomainStep(domain, step, funcs) => {
                     controller.save_step(domain, step, funcs).unwrap();
                 }
+                TUIEvent::ReloadDomains => {
+                    let domains = load_domains("./config/domains").unwrap();
+                    controller.reload_domains(domains);
+
+                    controller.apply_domains(&mut state.reconciler.target);
+                    // publish the target to UI immediately so the UI reflects what the user did
+                    *cfg_ui.lock().unwrap() = state.reconciler.target.clone();
+
+                    let _ = ui_tx.send(UiEvent::Log("Reloaded domains".into()));
+                }
                 _ => {}
             }
         }

@@ -200,6 +200,10 @@ impl Controller {
         Self { domains }
     }
 
+    pub fn reload_domains(&mut self, domains: Vec<Domain>) -> () {
+        self.domains = domains;
+    }
+
     pub fn apply_domains(&self, cfg: &mut MidievolConfig) {
         for domain in &self.domains {
             let Some(values_by_name) = domain.get_values() else {

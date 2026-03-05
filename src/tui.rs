@@ -32,6 +32,7 @@ pub enum TUIEvent {
     StopEvo,
     StartEvo,
     SaveDomainStep(usize, usize, Vec<ModFunc>),
+    ReloadDomains,
 }
 
 const NOTES: [&str; 12] = [
@@ -1097,6 +1098,10 @@ pub fn run_tui(
 
                 if k.code == KeyCode::Char('r') {
                     let _ = tui_events_tx.send(TUIEvent::Reset);
+                }
+
+                if k.code == KeyCode::Char('d') {
+                    let _ = tui_events_tx.send(TUIEvent::ReloadDomains);
                 }
 
                 if k.code == KeyCode::Up {
