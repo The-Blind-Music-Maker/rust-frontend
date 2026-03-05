@@ -28,15 +28,14 @@ impl Domain {
 
         // Clamp value to [0, 127]
         let v: f64 = self.value.clamp(0, 127).into();
-
         // Map 0..127 to step space 0..(n-1)
         let pos: f64 = (v / 127.0) * ((n - 1) as f64);
         let lo = pos.floor() as usize;
         let hi = pos.ceil() as usize;
         let t = (pos - (lo as f64)).clamp(0.0, 1.0);
 
-        let s_lo = self.get_step_by_index(lo + 1)?;
-        let s_hi = self.get_step_by_index(hi + 1)?;
+        let s_lo = self.get_step_by_index(lo)?;
+        let s_hi = self.get_step_by_index(hi)?;
 
         // Helper: choose closest step for "none"
         let pick_hi = t >= 0.5;
