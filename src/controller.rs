@@ -13,7 +13,7 @@ pub struct Domain {
     pub funcs: HashMap<String, FuncConfig>,
     pub steps_count: u32,
     // ✅ ordered by step key ("1","2","3"...)
-    pub steps: BTreeMap<String, BTreeMap<String, StepFunc>>,
+    pub steps: BTreeMap<u32, BTreeMap<String, StepFunc>>,
     #[serde(skip)]
     pub filename: String,
 }
@@ -109,7 +109,7 @@ impl Domain {
     /// Gets step by 0-based index from YAML keys like "1", "2", ...
     fn get_step_by_index(&self, idx0: usize) -> Option<&BTreeMap<String, StepFunc>> {
         // Your YAML uses "1" as first step; map 0 -> "1"
-        let key = (idx0 + 1).to_string();
+        let key: u32 = idx0.try_into().unwrap();
         self.steps.get(&key)
     }
 }
@@ -240,7 +240,7 @@ impl Controller {
         }
 
         // YAML keys are "1", "2", ...
-        let step_key = step.to_string();
+        let step_key = step.try_into().unwrap();
 
         // Build the step map from CURRENT modfunc values, but only for funcs this domain knows about.
         let mut step_map: BTreeMap<String, StepFunc> = BTreeMap::new();

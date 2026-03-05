@@ -1123,6 +1123,39 @@ pub fn run_tui(
                     // dispatch ev here
                 }
 
+                if let KeyCode::Char('0') = k.code {
+                    let step: usize = 10;
+                    let mod_funcs: Vec<ModFunc> = app.cfg.lock().unwrap().modfuncs.clone();
+                    app.push_log(format!("update step, {}", step));
+                    let _ = tui_events_tx.send(TUIEvent::SaveDomainStep(
+                        app.state.domain,
+                        step,
+                        mod_funcs,
+                    ));
+                }
+
+                if let KeyCode::Char('-') = k.code {
+                    let step: usize = 11;
+                    let mod_funcs: Vec<ModFunc> = app.cfg.lock().unwrap().modfuncs.clone();
+                    app.push_log(format!("update step, {}", step));
+                    let _ = tui_events_tx.send(TUIEvent::SaveDomainStep(
+                        app.state.domain,
+                        step,
+                        mod_funcs,
+                    ));
+                }
+
+                if let KeyCode::Char('=') = k.code {
+                    let step: usize = 12;
+                    let mod_funcs: Vec<ModFunc> = app.cfg.lock().unwrap().modfuncs.clone();
+                    app.push_log(format!("update step, {}", step));
+                    let _ = tui_events_tx.send(TUIEvent::SaveDomainStep(
+                        app.state.domain,
+                        step,
+                        mod_funcs,
+                    ));
+                }
+
                 if k.code == KeyCode::Char('p') {
                     let _ = tui_scheduler_tx.send(TUIEvent::SendStart);
                 }
