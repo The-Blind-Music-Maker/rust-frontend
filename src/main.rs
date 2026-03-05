@@ -241,6 +241,7 @@ fn melody_to_loop_data(
                     "8" => Feel::Eight,
                     "16" => Feel::Sixteenth,
                     "8t" => Feel::EightTriplet,
+                    "5" => Feel::Quintuplet,
                     _ => Feel::Unknown,
                 },
                 apply_optimum(score.score, cgf.modfuncs[FEEL_FUNC_IDX].params[0].value),
