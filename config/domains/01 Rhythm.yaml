@@ -1,0 +1,179 @@
+cc: 1
+value: 127
+funcs:
+  scoreRhythmicMotifs:
+    weight: linear
+    params: []
+  scoreBpm:
+    weight: linear
+    params:
+    - linear
+  scoreGridness16th:
+    weight: linear
+    params:
+    - linear
+    - none 
+    - none
+  scoreNoteLengthDiversity:
+    weight: linear
+    params:
+    - linear
+    - linear
+steps_count: 4
+steps:
+  1:
+    scoreBpm:
+      weight: 3.0
+      params:
+      - 70.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreGridness16th:
+      weight: 3.0
+      params:
+      - 0.2
+      - 1.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreNoteLengthDiversity:
+      weight: 3.0
+      params:
+      - 0.4
+      - 0.4
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreRhythmicMotifs:
+      weight: 0.0
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  2:
+    scoreBpm:
+      weight: 3.0
+      params:
+      - 80.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreGridness16th:
+      weight: 3.0
+      params:
+      - 0.1
+      - 2.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreNoteLengthDiversity:
+      weight: 3.0
+      params:
+      - 0.3
+      - 0.3
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreRhythmicMotifs:
+      weight: 0.5
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  3:
+    scoreBpm:
+      weight: 3.0
+      params:
+      - 90.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreGridness16th:
+      weight: 3.0
+      params:
+      - 0.05
+      - 2.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreNoteLengthDiversity:
+      weight: 3.0
+      params:
+      - 0.2
+      - 0.2
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreRhythmicMotifs:
+      weight: 1.0
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+  4:
+    scoreBpm:
+      weight: 3.0
+      params:
+      - 90.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreGridness16th:
+      weight: 3.0
+      params:
+      - 0.3
+      - 4.0
+      - 0.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreNoteLengthDiversity:
+      weight: 2.0
+      params:
+      - 0.5
+      - 0.3
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreRhythmicMotifs:
+      weight: 1.0
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
