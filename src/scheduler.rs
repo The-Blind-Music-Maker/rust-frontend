@@ -4,6 +4,8 @@ use std::sync::mpsc::SyncSender;
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::scoring::ScoreConfig;
+
 const MIDI_CLOCK: u8 = 0xF8;
 
 pub const BASS_INSTRUMENT_CHAN: u8 = 0;
@@ -66,7 +68,9 @@ pub fn note_off(conn_out: &mut midir::MidiOutputConnection, ch: u8, note: u8) {
 
 pub fn all_notes_off(conn_out: &mut midir::MidiOutputConnection) {
     for ch in 0u8..16 {
-        if ch == 9 {continue}
+        if ch == 9 {
+            continue;
+        }
         // 1. Alle mogelijke pitches expliciet NoteOff sturen
         for pitch in 0u8..128 {
             let _ = conn_out.send(&[0x80 | ch, pitch, 0]);
@@ -98,6 +102,7 @@ pub struct LoopData {
     pub avg_notes_per_q: u8,
     pub feel: Feel,
     pub feel_score: f64,
+    pub score_rank: u8,
     pub bpm: f64,
 }
 
@@ -396,6 +401,7 @@ impl Scheduler {
                             Feel::EightTriplet => 3,
                             Feel::Quintuplet => 4,
                         };
+                        let score_rank = new_loop.score_rank;
                         let feel_score: u8 = ((127 as f64) * new_loop.feel_score.clone())
                             .round()
                             .clamp(u8::MIN as f64, u8::MAX as f64)
@@ -424,7 +430,8 @@ impl Scheduler {
                             14,
                             float_to_cc(self.bpm.into(), 40., 200.0, 0.9).unwrap(),
                         );
-                        send_cc(conn_out, 4, 14, feel_score);
+                        send_cc(conn_out, 4, 15, feel_score);
+                        send_cc(conn_out, 4, 16, score_rank);
 
                         // NOTE: MIDI clock stream stays in heap (independent), so we don't clear it here.
                         // rebuild_heap_at_boundary() only rebuilds note/boundary events; it does not touch MidiClock.

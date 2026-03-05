@@ -13,6 +13,7 @@ pub mod controller;
 mod midievol;
 mod reconcile;
 mod scheduler;
+mod scoring;
 mod tui;
 
 use crate::controller::{Controller, load_domains};
@@ -22,6 +23,7 @@ use crate::scheduler::{
     BASS_INSTRUMENT_CHAN, Feel, HIGH_INSTRUMENT_CHAN, LoopData, MID_INSTRUMENT_CHAN, NoteEvent,
     Scheduler, TrackData, float_to_cc, send_realtime,
 };
+use crate::scoring::{ScoreConfig, scores_to_map};
 use crate::tui::{TUIEvent, UiEvent, pitch_x10_to_midi, run_tui};
 
 const MIDI_START: u8 = 0xFA;
@@ -139,6 +141,7 @@ fn melody_to_loop_data(
     ch_mid: u8,
     ch_high: u8,
     default_note: u8,
+    score_cfg: &ScoreConfig,
 ) -> LoopData {
     // Melody track velocity: average volume, clamped 0..127
     let melody_vel: u8 = if m.notes.is_empty() {
@@ -259,6 +262,9 @@ fn melody_to_loop_data(
         feel_score,
         feel,
         bpm: m.bpm,
+        score_rank: score_cfg
+            .combined_ranking(&cgf, scores_to_map(&cgf, &m.scores_per_func))
+            .unwrap(),
     };
 
     // Add metronome track (unchanged)
@@ -281,15 +287,16 @@ fn melody_to_loop_data(
 fn main() {
     env_logger::init();
     let cfg = midievol::load_config("./config/config.yaml").unwrap();
+    let score_cfg = scoring::load_score_config("./config/score/score.yaml").unwrap();
 
     let melody = generate_new_melody(&cfg);
 
-    if let Err(e) = run(melody, cfg) {
+    if let Err(e) = run(melody, cfg, score_cfg) {
         eprintln!("Error: {e}");
     }
 }
 
-fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
+fn run(initial: Melody, cfg: MidievolConfig, score_cfg: ScoreConfig) -> Result<(), Box<dyn Error>> {
     let mut conn_out = open_midi_output()?;
 
     let midi_in_data: Option<(MidiInput, MidiInputPort)> =
@@ -386,7 +393,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
         &initial, 600, &cfg, 0, // channel 1
         1, // channel 2
         2, // channel 3
-        64,
+        64, &score_cfg,
     );
 
     let mut scheduler = Scheduler::new(
@@ -426,6 +433,7 @@ fn run(initial: Melody, cfg: MidievolConfig) -> Result<(), Box<dyn Error>> {
                 melody_ui,
                 controller,
                 controller_cc_rx,
+                score_cfg,
             );
         });
     }
@@ -527,6 +535,7 @@ fn producer(
     melody_ui: Arc<Mutex<Option<midievol::Melody>>>,
     mut controller: Controller,
     controller_cc_rx: mpsc::Receiver<MidiCc>,
+    score_cfg: ScoreConfig,
 ) {
     let (result_tx, result_rx) = mpsc::channel::<(u64, Melody)>();
     let mut in_flight = false;
@@ -642,6 +651,7 @@ fn producer(
                 MID_INSTRUMENT_CHAN,
                 HIGH_INSTRUMENT_CHAN,
                 64,
+                &score_cfg,
             );
 
             *cfg_ui.lock().unwrap() = state.reconciler.target.clone();
