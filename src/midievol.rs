@@ -49,14 +49,14 @@ fn get_random_note(rng: &mut impl Rng) -> u32 {
 
 /// Creates one "note" DNA string:
 /// - note:   random 0..=840   -> base4 -> pad to 8 with 'A'
-/// - time?:  random 0..=2000  -> base4 -> pad to 8 with 'A'
+/// - position?:  random 0..=2000  -> base4 -> pad to 8 with 'A'
 /// - vel:    random 0..=127   -> base4 -> pad to 4 with 'A'
-/// - dur?:   random 0..=4000  -> base4 -> pad to 16 with 'A'  (since 500*8=4000)
-pub fn create_random_note(rng: &mut impl Rng) -> String {
+/// - dur?:   random 0..=4000  -> base4 -> pad to 16 with 'A'  (since 600*8=4600)
+pub fn create_random_note(max_pos: u32, rng: &mut impl Rng) -> String {
     let a = pad_start(num_to_base4(get_random_note(rng)), 8, 'A');
-    let b = pad_start(num_to_base4(rand_round_inclusive(rng, 2000)), 8, 'A');
+    let b = pad_start(num_to_base4(rand_round_inclusive(rng, max_pos)), 8, 'A');
     let c = pad_start(num_to_base4(rand_round_inclusive(rng, 127)), 4, 'A');
-    let d = pad_start(num_to_base4(rand_round_inclusive(rng, 500 * 8)), 16, 'A');
+    let d = pad_start(num_to_base4(rand_round_inclusive(rng, 600 * 8)), 16, 'A');
 
     format!("{a}{b}{c}{d}")
 }
@@ -65,10 +65,16 @@ const BPM_MIN: f64 = 60.0;
 const BPM_MAX: f64 = 180.0;
 
 /// Concatenate `num_notes` random notes into one DNA string.
-pub fn create_random_melody(num_notes: usize, rng: &mut impl Rng) -> (String, f64) {
+pub fn create_random_melody(rng: &mut impl Rng) -> (String, f64) {
     let mut dna = String::new();
+    let num_notes_r: f64 = rng.random();
+    let num_notes: u32 = (num_notes_r * 12.0).round() as u32 + 4;
+
+    let max_pos_r: f64 = rng.random();
+    let max_pos: u32 = (max_pos_r * 9600.0).round() as u32;
+
     for _ in 0..num_notes {
-        dna.push_str(&create_random_note(rng));
+        dna.push_str(&create_random_note(max_pos, rng));
     }
 
     (dna, rng.random_range(BPM_MIN..=BPM_MAX))

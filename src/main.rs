@@ -494,7 +494,7 @@ fn generate_new_melody(cfg: &MidievolConfig) -> Melody {
     let mut r = rand::rng();
 
     loop {
-        let (dna, bpm) = midievol::create_random_melody(8, &mut r);
+        let (dna, bpm) = midievol::create_random_melody(&mut r);
         let init_payload = midievol::InitPayload {
             dna: dna.clone(),
             voices: cfg.voices.clone(),
