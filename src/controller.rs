@@ -37,8 +37,8 @@ impl Domain {
         let hi = pos.ceil() as usize;
         let t = (pos - (lo as f64)).clamp(0.0, 1.0);
 
-        let s_lo = self.get_step_by_index(lo)?;
-        let s_hi = self.get_step_by_index(hi)?;
+        let s_lo = self.get_step_by_index(lo + 1)?;
+        let s_hi = self.get_step_by_index(hi + 1)?;
 
         // Helper: choose closest step for "none"
         let pick_hi = t >= 0.5;
