@@ -280,7 +280,7 @@ steps:
     scoreBpm:
       weight: 3.0
       params:
-      - 90.0
+      - 110.0
       voices:
       - true
       - true
@@ -290,8 +290,8 @@ steps:
       weight: 3.0
       params:
       - 0.4
-      - 7.0
-      - 1.0
+      - 5.0
+      - 0.0
       voices:
       - true
       - true

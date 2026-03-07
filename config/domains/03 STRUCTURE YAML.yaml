@@ -77,7 +77,7 @@ steps:
       weight: 2.0
       params:
       - 0.3
-      - 0.0
+      - 0.1
       - 0.3
       voices:
       - true
