@@ -1,6 +1,7 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 
 /// Convert a non-negative integer to "base-4" using mapping:
 /// 0 -> 'A', 1 -> 'G', 2 -> 'C', 3 -> 'T'
@@ -338,9 +339,22 @@ pub fn send_evolve_req(
     let txt = response.text().unwrap();
 
     // Deserialize JSON body into Melody
-    let melody: Melody = serde_json::from_str(&txt).unwrap(); //response.json()?;
 
-    Ok(melody)
+    match serde_json::from_str::<Melody>(&txt) {
+        Ok(melody) => Ok(melody),
+        Err(e) => {
+            // Write the invalid response to an error file
+            let mut file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open("deserialize_error.log")?;
+
+            writeln!(file, "Deserialization error: {e}")?;
+            writeln!(file, "Response body:\n{txt}\n---\n")?;
+
+            Err(Box::new(e))
+        }
+    }
 }
 
 // use std::error::Error;
