@@ -30,7 +30,7 @@ funcs:
     - none
     - none
 steps:
-  10:   #LEEG Energywaves UIT, max2gap, overlap UIT, Density 0.5/0.5/0.5/
+  10:   #LEEG ALLEEN BAS MID Energywaves UIT, max2gap, overlap UIT, Density 0.5/0.5/0.5/
     scoreEnergyWaves:
       weight: 0.0
       params:
@@ -76,15 +76,15 @@ steps:
     scoreVoiceDensity:
       weight: 2.0
       params:
-      - 0.5
-      - 0.5
-      - 0.5
+      - 0.3
+      - 0.0
+      - 0.3
       voices:
       - true
       - true
       - true
       splitVoices: false
-  15:   #LEEG NO OVERLAP AT ALL Energywaves UIT, max2gap, overlap UIT, Density 0.5/0.5/0.5/
+  15:   #LEEG NO OVERLAP AT ALL Energywaves UIT, max2gap, overlap UIT, Density laag
     scoreEnergyWaves:
       weight: 0.0
       params:
@@ -130,9 +130,9 @@ steps:
     scoreVoiceDensity:
       weight: 2.0
       params:
+      - 0.3
       - 0.5
-      - 0.5
-      - 0.5
+      - 0.3
       voices:
       - true
       - true
@@ -184,9 +184,9 @@ steps:
     scoreVoiceDensity:
       weight: 2.0
       params:
-      - 0.5
-      - 0.5
-      - 0.5
+      - 0.4
+      - 0.4
+      - 0.4
       voices:
       - true
       - true
@@ -238,9 +238,9 @@ steps:
     scoreVoiceDensity:
       weight: 2.0
       params:
-      - 1
-      - 1
-      - 1
+      - 0.8
+      - 0.7
+      - 0.8
       voices:
       - true
       - true
@@ -292,9 +292,9 @@ steps:
     scoreVoiceDensity:
       weight: 2.0
       params:
-      - 1
-      - 2
-      - 1
+      - 0.7
+      - 1.4
+      - 0.7
       voices:
       - true
       - true
@@ -346,9 +346,9 @@ steps:
     scoreVoiceDensity:
       weight: 2.0
       params:
-      - 1
-      - 2
-      - 1
+      - 0.7
+      - 1.3
+      - 0.7
       voices:
       - true
       - true
@@ -400,9 +400,9 @@ steps:
     scoreVoiceDensity:
       weight: 2.0
       params:
+      - 0.7
       - 1.5
-      - 1.5
-      - 1.5
+      - 0.7
       voices:
       - true
       - true
@@ -454,9 +454,9 @@ steps:
     scoreVoiceDensity:
       weight: 2.0
       params:
-      - 1.5
-      - 3
-      - 1.5
+      - 1
+      - 2
+      - 1
       voices:
       - true
       - true
@@ -508,9 +508,9 @@ steps:
     scoreVoiceDensity:
       weight: 2.0
       params:
-      - 1.5
-      - 3
-      - 1.8
+      - 1.2
+      - 2
+      - 1
       voices:
       - true
       - true
@@ -562,9 +562,9 @@ steps:
     scoreVoiceDensity:
       weight: 2.0
       params:
+      - 1.5
       - 2
-      - 4
-      - 2
+      - 1.5
       voices:
       - true
       - true
