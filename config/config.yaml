@@ -61,18 +61,47 @@ modFuncs:
     scoreRange: [null, 1]
 
   - name: scoreTonality
-    weight: 3
+    weight: 5
     weightCC: 4
     params:
+      # 1 "major_family"
+      # 2 "minor_family"
+      # 3 "modal"
+      # 4 "pentatonic"
+      # 5 "symmetric"
+      # 6 "world_color"
+      # 7 "bright"
+      # 8 "dark"
+      # 9 "dreamy"
+      # 10 "earthy"
+      # 11 "mystical"
+      # 12 "tense"
+      # 13 "bluesy"
+      # 14 "cinematic"
+      # 15 "floating"
+      # 16 "ritual"
+      # 17 "pentatonic_structure"
+      # 18 "hexatonic"
+      # 19 "heptatonic"
+      # 20 "octatonic"
+      # 21 "open"
+      # 22 "stable"
+      # 23 "unstable"
+      # 24 "africa_influenced"
+      # 25 "asia_influenced"
+      # 26 "middle_east_influenced"
+      # 27 "european_folk"
+      # 28 "blues_american"
+      # 29 "global_folk";
+      - name: Categories
+        range: [0, 29]
+        value: 16
+        type: int
+        cc: 101
       - name: Enabled scales
         range: [0, 64]
-        value: 4
-        # 000001 == 1 == "major"
-        # 000010 == 2 == "minor"
-        # 000100 == 4 == "diminished"
-        # 001000 == 8 == "whole_tone"
-        # 010000 == 16 == "lydian"
-        # 100000 == 32 == "major_pentatonic"
+        value: 31
+ 
         type: int
         cc: 101
     voices: [true, true, true]
