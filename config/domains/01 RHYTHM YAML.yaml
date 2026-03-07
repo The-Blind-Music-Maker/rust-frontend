@@ -1,9 +1,6 @@
 cc: 1
 value: 127
 funcs:
-  scoreRhythmicMotifs:
-    weight: linear
-    params: []
   scoreBpm:
     weight: linear
     params:
@@ -14,6 +11,9 @@ funcs:
     - linear
     - none
     - none
+  scoreRhythmicMotifs:
+    weight: linear
+    params: []
 steps:
   1:
     scoreBpm:
@@ -241,6 +241,35 @@ steps:
       splitVoices: false
     scoreRhythmicMotifs:
       weight: 1.0
+      params: []
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: true
+  40:
+    scoreBpm:
+      weight: 3.0
+      params:
+      - 90.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreGridness16th:
+      weight: 2.0
+      params:
+      - 0.4
+      - 7.0
+      - 1.0
+      voices:
+      - true
+      - true
+      - true
+      splitVoices: false
+    scoreRhythmicMotifs:
+      weight: 0.0
       params: []
       voices:
       - true

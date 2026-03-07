@@ -1,5 +1,5 @@
 cc: 4
-value: 2
+value: 127
 funcs:
   scoreNoteLengthDiversity:
     weight: linear

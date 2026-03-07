@@ -102,16 +102,7 @@ impl ScoreConfig {
     }
 }
 
-/// Optional helper for display
-pub fn ranking_label(r: u8) -> &'static str {
-    match r {
-        0 => "really bad",
-        1 => "bad",
-        2 => "good",
-        3 => "really good",
-        _ => "unknown",
-    }
-}
+
 
 pub fn load_score_config(path: &str) -> anyhow::Result<ScoreConfig> {
     let yaml_str = fs::read_to_string(path)?;

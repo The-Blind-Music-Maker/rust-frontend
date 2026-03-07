@@ -4,7 +4,6 @@ use std::sync::mpsc::SyncSender;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::scoring::ScoreConfig;
 
 const MIDI_CLOCK: u8 = 0xF8;
 
