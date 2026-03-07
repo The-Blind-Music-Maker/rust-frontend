@@ -1,4 +1,4 @@
-bpm: 95.0
+bpm: 70
 
 # range 0--84 (is actual midi notes 24 - 108)
 voices:
@@ -6,7 +6,7 @@ voices:
   max: 60
 
 x_gens: 100
-children: 100
+children: 50
 
 modFuncs:
   - name: scoreMelodicMotifs
@@ -17,7 +17,7 @@ modFuncs:
     voicesCC: 114
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
-    splitVoices: false
+    splitVoices: true
     splitVoicesCC: 28
     scoreRange: [0, null]
 
@@ -29,7 +29,7 @@ modFuncs:
     voicesCC: 115
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
-    splitVoices: false
+    splitVoices: true
     splitVoicesCC: 29
     scoreRange: [0, null]
 
@@ -44,7 +44,7 @@ modFuncs:
         cc: 11
       - name: "Target overlap mid"
         range: [0, 8]
-        value: 3
+        value: 0
         type: int
         cc: 12
       - name: "Target overlap high"
@@ -61,15 +61,15 @@ modFuncs:
     scoreRange: [null, 1]
 
   - name: scoreTonality
-    weight: 2
+    weight: 3
     weightCC: 4
     params:
       - name: Enabled scales
         range: [0, 64]
-        value: 33
+        value: 4
         # 000001 == 1 == "major"
         # 000010 == 2 == "minor"
-        # 000100 == 4 == "altered_pent"
+        # 000100 == 4 == "diminished"
         # 001000 == 8 == "whole_tone"
         # 010000 == 16 == "lydian"
         # 100000 == 32 == "major_pentatonic"
@@ -101,7 +101,7 @@ modFuncs:
     params:
       - name: Chord categories
         range: [0, 64]
-        value: 8
+        value: 63
           # 000001 = 1 = tonal_core
           # 000010 = 2 = open_modal
           # 000100 = 4 = rich_tertian
@@ -112,10 +112,10 @@ modFuncs:
         cc: 103
       - name: Optimum
         range: [0, 1]
-        value: 1
+        value: 0.9
         type: float
         cc: 113
-    voices: [true, true, true]
+    voices: [true, true, false]
     voicesCC: 119
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: true
@@ -127,9 +127,9 @@ modFuncs:
     weight: 2
     weightCC: 7
     params:
-      - name: Optimum
+      - name: Humanize
         range: [0, 1]
-        value: 1
+        value: 0.4
         type: float
         cc: 14
       - name: Enabled grids
@@ -159,12 +159,12 @@ modFuncs:
     scoreRange: [-1, 1]
 
   - name: scoreMusicLength
-    weight: 1
-    weightCC: 8
+    weight: 0
+    weightCC: 12
     params:
       - name: "Q Note count"
         range: [0, 127]
-        value: 8
+        value: 20
         type: int
         cc: 15
     voices: [true, true, true]
@@ -181,12 +181,12 @@ modFuncs:
     params:
       - name: "Target diversity"
         range: [0, 1]
-        value: 0
+        value: 0.5
         type: float
         cc: 16
       - name: "Note length preference"
         range: [0, 1]
-        value: 0.5
+        value: 0.3
         type: float
         cc: 17
     voices: [true, true, true]
@@ -197,8 +197,8 @@ modFuncs:
     splitVoicesCC: 37
     scoreRange: [-1, 1]
 
-  - name: scoreGrowthDensity
-    weight: 1
+  - name: scoreVoiceDensity 
+    weight: 2
     weightCC: 10
     params:
       - name: "Target density bass"
@@ -208,7 +208,7 @@ modFuncs:
         cc: 18
       - name: "Target density mid"
         range: [0, 8]
-        value: 4
+        value: 1
         type: float
         cc: 19
       - name: "Target density high"
@@ -223,8 +223,9 @@ modFuncs:
     splitVoices: false
     splitVoicesCC: 38
     scoreRange: [null, 0]
+ 
   - name: scoreNoteDistribution
-    weight: 1
+    weight: 0
     weightCC: 11
     params:
       - name: "Optimum"
@@ -239,13 +240,14 @@ modFuncs:
     splitVoices: false
     splitVoicesCC: 39
     scoreRange: [-1, 1]
+ 
   - name: scoreBpm
-    weight: 2
+    weight: 3
     weightCC: 105
     params:
       - name: "Optimum"
         range: [50, 200]
-        value: 55
+        value: 90
         type: float
         cc: 22
     voices: [true, true, true]
@@ -255,9 +257,10 @@ modFuncs:
     splitVoices: false
     splitVoicesCC: 40
     scoreRange: [-1, 1]
+  
   - name: scoreEnergyWaves
-    weight: 5
-    weightCC: 107
+    weight: 0
+    weightCC: 106
     params:
       - name: MinVar
         range: [0, 10]
@@ -271,12 +274,12 @@ modFuncs:
         cc: 24
       - name: beatsPerMeasure
         range: [2, 8]
-        value: 2
+        value: 4
         type: int
         cc: 25
       - name: stepBeats
         range: [0.25, 2]
-        value: 0.5
+        value: 0.50
         type: int
         cc: 26
       - name: onsetMergeSubdivision
@@ -288,22 +291,78 @@ modFuncs:
     voicesCC: 126
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
-    splitVoices: false
+    splitVoices: true
     splitVoicesCC: 41
     scoreRange: [null, 1]
+  
   - name: scoreMaxGap
     weight: 0
-    weightCC: 105
+    weightCC: 107
     params:
       - name: "maxGapBeats"
         range: [0.1, 10]
-        value: 3
+        value: 2
         type: float
         cc: 28
     voices: [true, true, true]
     voicesCC: 126
     normalizationFunc: normalizeMinOneToOne
     hasNormalizedScore: false
-    splitVoices: false
+    splitVoices: true
     splitVoicesCC: 41
     scoreRange: [null, 0]
+
+  - name: scoreVelocityDiversity
+    weight: 0
+    weightCC: 108
+    params:
+      - name: "Target velocity diversity"
+        range: [0, 1]
+        value: 0.5
+        type: float
+        cc: 70
+      - name: "Velocity preference"
+        range: [0, 1]
+        value: 0.5
+        type: float
+        cc: 71
+    voices: [true, true, true]
+    voicesCC: 127
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: true
+    splitVoices: true
+    splitVoicesCC: 42
+    scoreRange: [-1, 1]
+   
+  - name: scorePitchClassDiversity
+    weight: 0
+  
+    weightCC: 109
+    params:
+    - name: "Min pitchclass diversity"
+      range: [0.1, 1]
+      value: 0.5
+      type: float
+      cc: 141
+    - name: "Max pitchclass diversity"
+      range: [0.1, 1]
+      value: 1
+      type: float
+      cc: 142
+    voices: [true, true, true]
+    voicesCC: 128
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: true
+    splitVoices: false
+    splitVoicesCC: 43
+    scoreRange: [-1, 1]
+  
+  - name: scoreGrowth
+    
+    weight: 1.5
+    params: []
+    voices: [true, true, true]
+    normalizationFunc: normalizeMinOneToOne
+    hasNormalizedScore: true
+    splitVoices: false
+    scoreRange: [-1, 1]
