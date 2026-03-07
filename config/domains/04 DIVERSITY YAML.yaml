@@ -163,7 +163,7 @@ steps:
     scoreNoteLengthDiversity:
       weight: 2.0
       params:
-      - 0.5
+      - 0.1
       - 0.1
       voices:
       - true
@@ -184,8 +184,8 @@ steps:
     scoreNoteLengthDiversity:
       weight: 3.0
       params:
-      - 0.5
-      - 0.5
+      - 0.1
+      - 0.1
       voices:
       - true
       - true
